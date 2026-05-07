@@ -1101,6 +1101,9 @@
     max-width: 520px; /* aligns with home-starter max-width */
     margin: 16px auto 0;
   }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel {
+    justify-content: center;
+  }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action {
     flex: 1 1 calc(50% - 12px);
     min-width: 160px;
@@ -1108,7 +1111,13 @@
     background: var(--input-bg) !important;
     border-radius: 12px !important;
     border: 1px solid var(--border2) !important;
-    gap: 12px;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex-direction: row; /* keeping icon beside text */
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-copy {
     align-items: center;
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action .composer-mobile-config-kicker {
