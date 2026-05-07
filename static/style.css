@@ -246,6 +246,25 @@
     background:linear-gradient(180deg,rgba(125,211,252,0.05),rgba(125,211,252,0.015));
   }
 
+  /* Home start input/button: force retro treatment (inputs don't always inherit typography) */
+  :root[data-skin="sebadebian"] .home-starter-input,
+  :root[data-skin="sebadebian"] .home-starter-btn{
+    font-family:var(--font-ui);
+    letter-spacing:.015em;
+  }
+  :root[data-skin="sebadebian"] .home-starter-input{
+    background:linear-gradient(180deg,rgba(125,211,252,0.09),rgba(125,211,252,0.03));
+    border:1px solid var(--border2);
+    color:var(--text);
+    caret-color:var(--accent);
+    box-shadow:inset 0 0 0 1px rgba(125,211,252,0.08),0 0 0 1px rgba(0,0,0,0.3);
+  }
+  :root[data-skin="sebadebian"] .home-starter-input::placeholder{color:var(--muted);opacity:.95;}
+  :root[data-skin="sebadebian"] .home-starter-input:focus{
+    border-color:var(--accent);
+    box-shadow:inset 0 0 0 1px rgba(125,211,252,0.14),0 0 0 1px rgba(0,0,0,0.35),0 0 0 3px rgba(56,189,248,0.18);
+  }
+
   :root[data-skin="sebadebian"] .empty-logo img{filter:drop-shadow(0 0 10px rgba(56,189,248,0.35)) drop-shadow(0 0 26px rgba(56,189,248,0.16));}
 
   /* #594: app-dialog light mode overrides — base styles use hardcoded dark gradients */
@@ -871,7 +890,8 @@
   .msg-role.assistant{color:var(--accent-text);opacity:.6;}
   .role-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
   .role-icon.user{background:var(--accent-bg);color:var(--accent-text);border:1px solid var(--accent-bg-strong);}
-  .role-icon.assistant{background:var(--accent-bg-strong);color:var(--accent-text);border:1px solid var(--accent-bg-strong);}
+  .role-icon.assistant{background:transparent;color:var(--accent-text);border:1px solid transparent;}
+.role-icon.assistant img{width:20px;height:20px;display:block;object-fit:cover;}
   .msg-body{font-size:14px;line-height:1.75;color:var(--text);padding-left:30px;max-width:680px;overflow-wrap:anywhere;}
   .msg-body p{margin-bottom:10px;}.msg-body p:last-child{margin-bottom:0;}
   .msg-body ul,.msg-body ol{margin:6px 0 10px 20px;}.msg-body li{margin-bottom:3px;}
@@ -1010,9 +1030,25 @@
   .suggestion-grid{display:flex;flex-direction:column;gap:8px;margin-top:12px;width:100%;max-width:380px;}
   .suggestion{padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--muted);cursor:pointer;transition:all .15s;text-align:left;}
   .suggestion:hover{background:var(--accent-bg);color:var(--text);border-color:var(--accent-bg);transform:translateX(2px);}
-  .home-starter{display:flex;gap:8px;width:100%;max-width:520px;align-items:center;margin-top:8px;}
+  .home-starter{display:flex;gap:8px;width:100%;max-width:520px;align-items:center;margin-top:8px;position:relative;}
   .home-starter-input{flex:1;min-width:0;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border2);border-radius:12px;color:var(--text);font-size:14px;outline:none;}
   .home-starter-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
+  /* Cosmetic terminal cursor on empty home input (hides once typing starts) */
+  :root[data-skin="sebadebian"] .home-starter:has(.home-starter-input:placeholder-shown)::before{
+    content:"";
+    position:absolute;
+    left:14px;
+    top:50%;
+    width:1px;
+    height:1.05em;
+    background:var(--accent);
+    transform:translateY(-50%);
+    animation:home-cursor-blink 1s steps(1,end) infinite;
+    pointer-events:none;
+  }
+  :root[data-skin="sebadebian"] .home-starter-input:placeholder-shown{caret-color:transparent;}
+  :root[data-skin="sebadebian"] .home-starter-input:not(:placeholder-shown){caret-color:var(--accent);}
+  @keyframes home-cursor-blink{50%{opacity:0;}}
   .home-starter-btn{padding:11px 14px;border:1px solid var(--accent-bg-strong);border-radius:12px;background:var(--accent-bg);color:var(--accent-text);font-weight:600;cursor:pointer;}
   .home-starter-btn:hover{filter:brightness(1.05);}
   /* ── Composer ── */

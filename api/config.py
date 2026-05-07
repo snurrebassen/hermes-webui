@@ -3422,7 +3422,7 @@ _SETTINGS_DEFAULTS = {
     "font_size": "default",  # small | default | large
     "language": "en",  # UI locale code; must match a key in static/i18n.js LOCALES
     "bot_name": os.getenv(
-        "HERMES_WEBUI_BOT_NAME", "seb.deb"
+        "HERMES_WEBUI_BOT_NAME", "seba.debian"
     ),  # display name for the assistant
     "sound_enabled": False,  # play notification sound when assistant finishes
     "notifications_enabled": False,  # browser notification when tab is in background

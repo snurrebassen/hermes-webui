@@ -1,7 +1,7 @@
 {
-  "name": "seb.deb",
-  "short_name": "seb.deb",
-  "description": "seb.deb AI Agent Web UI",
+  "name": "seba.debian",
+  "short_name": "seba.debian",
+  "description": "seba.debian AI Agent Web UI",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#1a1a1a",

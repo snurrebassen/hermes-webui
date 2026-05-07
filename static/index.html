@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>seb.deb</title>
+  <title>seba.debian</title>
 <link rel="icon" type="image/svg+xml" href="static/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32.png">
 <link rel="shortcut icon" href="static/favicon.ico">
@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="seb.deb">
+  <meta name="apple-mobile-web-app-title" content="seba.debian">
 <link rel="apple-touch-icon" sizes="512x512" href="static/apple-touch-icon.png">
 <!-- base href enables subpath mount support; all static paths must stay relative (no leading slash) -->
 <script>(function(){var path=location.pathname,marker='/session/',i=path.indexOf(marker),p;i>=0?p=(path.slice(0,i+1)||'/'):p=(path.endsWith('/')?path:(path.replace(/\/[^\/]*$/,'/')||'/'));document.write('<base href="'+location.origin+p+'">');})()</script>
@@ -68,7 +68,7 @@
     <span class="app-titlebar-icon" aria-hidden="true">
       <img src="static/seb-logo.svg" alt="" width="16" height="16" loading="eager" decoding="async">
     </span>
-    <span class="app-titlebar-title" id="appTitlebarTitle">seb.deb</span>
+    <span class="app-titlebar-title" id="appTitlebarTitle">seba.debian</span>
     <span class="app-titlebar-sub" id="appTitlebarSub" hidden></span>
   </div>
   <div class="app-titlebar-spacer" aria-hidden="true"></div>
@@ -288,9 +288,9 @@
     <div class="messages" id="messages">
       <button id="scrollToBottomBtn" class="scroll-to-bottom-btn" aria-label="Scroll to bottom" onclick="scrollToBottom()" style="display:none">↓</button>
       <div class="empty-state" id="emptyState">
-        <div class="empty-logo"><img src="static/seb-logo.svg" alt="seb.deb logo" width="500" height="500" loading="eager" decoding="async"></div>
+        <div class="empty-logo"><img src="static/seb-logo.svg" alt="seba.debian logo" width="500" height="500" loading="eager" decoding="async"></div>
         <div class="home-starter" role="group" aria-label="Start chat">
-          <input id="homeStartInput" class="home-starter-input" type="text" placeholder="Ask anything…" autocomplete="off">
+          <input id="homeStartInput" class="home-starter-input" type="text" placeholder="" autocomplete="off">
           <button id="homeStartBtn" class="home-starter-btn" type="button">Start</button>
         </div>
       </div>
@@ -319,10 +319,10 @@
     </div>
     <div class="agent-health-banner" id="agentHealthBanner" role="alert" aria-live="assertive" hidden>
       <div class="agent-health-copy">
-        <strong id="agentHealthTitle">seb.deb agent is not responding</strong>
+        <strong id="agentHealthTitle">seba.debian agent is not responding</strong>
         <span id="agentHealthDetails">The gateway heartbeat failed. Messages may not be delivered until it comes back.</span>
       </div>
-      <button class="agent-health-dismiss" id="agentHealthDismiss" type="button" onclick="dismissAgentHealthAlert()" aria-label="Dismiss seb.deb agent heartbeat alert">Dismiss</button>
+      <button class="agent-health-dismiss" id="agentHealthDismiss" type="button" onclick="dismissAgentHealthAlert()" aria-label="Dismiss seba.debian agent heartbeat alert">Dismiss</button>
     </div>
     <div class="composer-wrap" id="composerWrap">
       <div class="composer-flyout">
@@ -432,7 +432,7 @@
           <span class="voice-mode-indicator" id="voiceModeIndicator"></span>
           <span class="voice-mode-label" id="voiceModeLabel"></span>
         </div>
-        <textarea id="msg" rows="1" placeholder="Message seb.deb…"></textarea>
+        <textarea id="msg" rows="1" placeholder="Message seba.debian…"></textarea>
         <div class="composer-footer">
           <div class="composer-left">
             <input type="file" id="fileInput" multiple accept="image/*,text/*,application/pdf,application/json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.md,.py,.js,.ts,.yaml,.yml,.toml,.csv,.sh,.txt,.log,.env,.xls,.xlsx,.doc,.docx,.zip,.tar,.gz,.tgz,.bz2,.xz" style="display:none">
@@ -992,8 +992,8 @@
             </div>
             <div class="settings-field">
               <label for="settingsBotName" data-i18n="settings_label_bot_name">Assistant Name</label>
-              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_bot_name">Display name for the assistant throughout the UI. Defaults to seb.deb.</div>
-              <input type="text" id="settingsBotName" placeholder="seb.deb" maxlength="64" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_bot_name">Display name for the assistant throughout the UI. Defaults to seba.debian.</div>
+              <input type="text" id="settingsBotName" placeholder="seba.debian" maxlength="64" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
             </div>
             <button class="sm-btn" onclick="saveSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600" data-i18n="settings_save_btn">Save Settings</button>
             <div id="settingsPreferencesAutosaveStatus" class="settings-autosave-status" aria-live="polite"></div>
