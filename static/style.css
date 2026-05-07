@@ -1098,14 +1098,14 @@
     visibility: visible;
     transform: none;
     width: 100%;
-    max-width: 600px; /* slightly wider to fit long model names */
+    max-width: 520px; /* aligns exactly with home-starter max-width */
     margin: 16px auto 0;
     justify-content: center;
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action {
-    flex: 1 1 auto;
+    flex: 1 1 calc(50% - 12px);
     min-width: 130px;
-    max-width: 220px;
+    max-width: 260px; /* ~50% of the text field max-width */
     padding: 10px 12px;
     background: var(--input-bg) !important;
     border-radius: 12px !important;
