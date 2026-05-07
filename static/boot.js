@@ -1439,7 +1439,14 @@ function applyBotName(){
   const saved=urlSession||savedLocal;
   if(saved){
     try{
-      if(!urlSession&&savedLocal&&await _savedSessionShouldStaySidebarOnly(savedLocal)){
+      const isMobile = window.innerWidth <= 768;
+      const isSebadebian = document.documentElement.dataset.skin === 'sebadebian';
+      const forceSidebarOnly = !urlSession && savedLocal && (
+        (await _savedSessionShouldStaySidebarOnly(savedLocal)) ||
+        (isMobile && isSebadebian)
+      );
+
+      if(forceSidebarOnly){
         S.session=null; S.messages=[]; S.activeStreamId=null; S.busy=false;
         S._bootReady=true;
         syncTopbar();syncWorkspacePanelState();
