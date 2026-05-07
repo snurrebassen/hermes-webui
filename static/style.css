@@ -1098,37 +1098,41 @@
     visibility: visible;
     transform: none;
     width: 100%;
-    max-width: 520px; /* aligns with home-starter max-width */
+    max-width: 600px; /* slightly wider to fit long model names */
     margin: 16px auto 0;
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel {
     justify-content: center;
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action {
-    flex: 1 1 calc(50% - 12px);
-    min-width: 160px;
-    padding: 12px 14px;
+    flex: 1 1 auto;
+    min-width: 130px;
+    max-width: 220px;
+    padding: 10px 12px;
     background: var(--input-bg) !important;
     border-radius: 12px !important;
     border: 1px solid var(--border2) !important;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     justify-content: center;
     text-align: center;
-    flex-direction: row; /* keeping icon beside text */
+    flex-direction: column; /* Stack icon above text to maximize horizontal space for text */
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-copy {
     align-items: center;
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action .composer-mobile-config-kicker {
     display: block !important;
-    font-size: 11px;
+    font-size: 10px;
     margin-bottom: 2px;
     color: var(--muted);
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action .composer-mobile-config-value {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
+    white-space: normal; /* allow wrapping on long model names */
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action:hover {
     border-color: var(--border) !important;
