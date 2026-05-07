@@ -1053,7 +1053,57 @@
   .home-starter-btn:hover{filter:brightness(1.05);}
   /* ── Composer ── */
   .composer-wrap{padding:12px 20px 16px;background:var(--bg);flex-shrink:0;}
-  body.home-empty-active .composer-wrap{display:none;}
+  
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-wrap {
+    display:flex !important;
+    justify-content:center;
+    background:transparent;
+    padding: 0 0 20px 0;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-box {
+    background:transparent;
+    border:none;
+    box-shadow:none;
+    width: auto;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-box:focus-within {
+    box-shadow:none;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-box > *:not(.composer-footer) {
+    display:none !important;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-footer {
+    padding: 0;
+    justify-content: center;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-left,
+  :root[data-skin="sebadebian"] body.home-empty-active .send-btn,
+  :root[data-skin="sebadebian"] body.home-empty-active .bg-badge,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-btn,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chip,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-model-wrap {
+    display:none !important;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel {
+    display:flex !important;
+    flex-direction:row;
+    position:static;
+    box-shadow:none;
+    border:none;
+    background:transparent;
+    padding:0;
+    gap: 8px;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel > * {
+    padding: 6px 12px;
+    background: var(--input-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+  }
+
   .composer-box{max-width:780px;margin:0 auto;background:linear-gradient(var(--input-bg),var(--input-bg)),var(--bg);border:1px solid var(--border2);border-radius:16px;display:flex;flex-direction:column;transition:border-color .2s,box-shadow .2s;position:relative;z-index:2;}
   .composer-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
   .composer-wrap.drag-over .composer-box{border-color:var(--accent-text);background:var(--accent-bg);}

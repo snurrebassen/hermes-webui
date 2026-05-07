@@ -2951,7 +2951,7 @@ function _positionComposerWsDropdown(){
   const panel=$('composerMobileConfigPanel');
   const footer=document.querySelector('.composer-footer');
   // While the mobile config panel is open, anchor to #composerMobileWorkspaceAction instead of only the desktop workspace chip.
-  const anchor=(panel&&panel.classList.contains('open')&&mobileAction)?mobileAction:chip;
+  const anchor=(panel&&panel.classList.contains('open')&&mobileAction)?mobileAction:(chip&&chip.offsetParent?chip:mobileAction);
   if(!dd||!anchor||!footer)return;
   const chipRect=anchor.getBoundingClientRect();
   const footerRect=footer.getBoundingClientRect();
