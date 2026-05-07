@@ -1053,97 +1053,70 @@
   .home-starter-btn:hover{filter:brightness(1.05);}
   /* ── Composer ── */
   .composer-wrap{padding:12px 20px 16px;background:var(--bg);flex-shrink:0;}
-  
+    /* 
+     Sebadebian: Instead of fully hiding the composer on empty home, we hide everything EXCEPT
+     the bottom footer chips (Workspace, Model, Reasoning). They are displayed directly under the
+     Start Chat text field in a clean horizontal strip.
+  */
   :root[data-skin="sebadebian"] body.home-empty-active .composer-wrap {
-    display:flex !important;
-    justify-content:center;
-    background:transparent;
-    padding: 0 0 20px 0;
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-box {
-    background:transparent;
-    border:none;
-    box-shadow:none;
-    width: auto;
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-box:focus-within {
-    box-shadow:none;
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-box > *:not(.composer-footer) {
-    display:none !important;
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-footer {
-    padding: 0;
-    justify-content: center;
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-left,
-  :root[data-skin="sebadebian"] body.home-empty-active .send-btn,
-  :root[data-skin="sebadebian"] body.home-empty-active .bg-badge,
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-btn,
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chip,
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-model-wrap {
-    display:none !important;
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel {
-    display: flex !important;
-    flex-direction: row;
-    flex-wrap: wrap;
-    position: static;
-    box-shadow: none;
-    border: none;
+    display: block !important;
     background: transparent;
     padding: 0;
-    gap: 12px;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-box {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+  /* Hide the attach tray, message textarea, drop hint, etc. */
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-box > *:not(.composer-footer) {
+    display: none !important;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-footer {
+    justify-content: center;
+    padding: 8px 0 20px 0;
+    margin: 0 auto;
     width: 100%;
-    max-width: 520px; /* aligns exactly with home-starter max-width */
-    margin: 16px auto 0;
+    max-width: 520px; /* Aligns exactly with the start chat input above it */
+  }
+  
+  /* Show only the core chips in the composer-left container */
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-left {
+    display: flex !important;
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
   }
-  /* 
-     Config action boxes are 50% width on desktop to align with the 520px input.
-     On mobile (when container < ~420px), they will wrap to full width because of min-width: 200px.
-  */
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action {
-    flex: 1 1 calc(50% - 12px);
-    min-width: 200px;
-    max-width: 100%; /* allows them to stretch full width when stacked on mobile */
-    padding: 12px 16px;
-    background: var(--input-bg) !important;
-    border-radius: 12px !important;
-    border: 1px solid var(--border2) !important;
-    gap: 12px;
-    align-items: center; /* vertically center icon with text block */
-    justify-content: flex-start; /* align content to the left */
-    text-align: left;
-    flex-direction: row; /* Horizontal box: Icon on left, text block on right */
+  
+  /* Hide the actual chat controls that shouldn't be on the start screen */
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-divider,
+  :root[data-skin="sebadebian"] body.home-empty-active #btnAttach,
+  :root[data-skin="sebadebian"] body.home-empty-active #btnMic,
+  :root[data-skin="sebadebian"] body.home-empty-active #btnVision,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-profile-wrap,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-toolsets-wrap,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-right,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-btn,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel,
+  :root[data-skin="sebadebian"] body.home-empty-active .bg-badge {
+    display: none !important;
   }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-copy {
-    align-items: flex-start; /* Stack Kicker and Value flush left */
-    justify-content: center;
-    flex: 1;
-    min-width: 0; /* Enable truncation/wrapping inside */
+  
+  /* Ensure the config chips are styled nicely and visible */
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-group,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-model-wrap,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-reasoning-wrap {
+    display: flex !important;
   }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action .composer-mobile-config-kicker {
-    display: block !important;
-    font-size: 10px;
-    margin-bottom: 2px;
-    color: var(--muted);
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action .composer-mobile-config-value {
-    font-size: 12px;
-    font-weight: 500;
-    white-space: normal; /* allow wrapping on long model names */
-    line-height: 1.25;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action:hover {
-    border-color: var(--border) !important;
-    background: var(--hover-bg) !important;
+  
+  /* Override mobile logic that normally hides desktop chips */
+  @media (max-width: 640px) {
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-left > .composer-model-wrap,
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-left > .composer-reasoning-wrap,
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-left > .composer-workspace-group {
+      display: flex !important;
+    }
   }
 
   .composer-box{max-width:780px;margin:0 auto;background:linear-gradient(var(--input-bg),var(--input-bg)),var(--bg);border:1px solid var(--border2);border-radius:16px;display:flex;flex-direction:column;transition:border-color .2s,box-shadow .2s;position:relative;z-index:2;}
