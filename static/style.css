@@ -1102,22 +1102,29 @@
     margin: 16px auto 0;
     justify-content: center;
   }
+  /* 
+     Config action boxes are 50% width on desktop to align with the 520px input.
+     On mobile (when container < ~420px), they will wrap to full width because of min-width: 200px.
+  */
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action {
     flex: 1 1 calc(50% - 12px);
-    min-width: 130px;
-    max-width: 260px; /* ~50% of the text field max-width */
-    padding: 10px 12px;
+    min-width: 200px;
+    max-width: 100%; /* allows them to stretch full width when stacked on mobile */
+    padding: 12px 16px;
     background: var(--input-bg) !important;
     border-radius: 12px !important;
     border: 1px solid var(--border2) !important;
-    gap: 6px;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    flex-direction: column; /* Stack icon above text to maximize horizontal space for text */
+    gap: 12px;
+    align-items: center; /* vertically center icon with text block */
+    justify-content: flex-start; /* align content to the left */
+    text-align: left;
+    flex-direction: row; /* Horizontal box: Icon on left, text block on right */
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-copy {
-    align-items: center;
+    align-items: flex-start; /* Stack Kicker and Value flush left */
+    justify-content: center;
+    flex: 1;
+    min-width: 0; /* Enable truncation/wrapping inside */
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action .composer-mobile-config-kicker {
     display: block !important;
