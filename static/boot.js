@@ -1021,6 +1021,39 @@ $('msg').addEventListener('paste',e=>{
 document.querySelectorAll('.suggestion').forEach(btn=>{
   btn.onclick=()=>{$('msg').value=btn.dataset.msg;send();};
 });
+const _homeStartInput=$('homeStartInput');
+const _homeStartBtn=$('homeStartBtn');
+if(_homeStartInput&&_homeStartBtn){
+  const startFromHome=()=>{
+    const text=String(_homeStartInput.value||'').trim();
+    if(!text)return;
+    $('msg').value=text;
+    _homeStartInput.value='';
+    send();
+  };
+  _homeStartBtn.onclick=startFromHome;
+  _homeStartInput.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();startFromHome();}
+  });
+}
+
+(function initHomeComposerVisibility(){
+  const empty=$('emptyState');
+  const msgInner=$('msgInner');
+  if(!empty) return;
+  const sync=()=>{
+    const emptyVisible=empty.style.display!=='none';
+    const hasMessages=!!(msgInner&&msgInner.children&&msgInner.children.length>0);
+    document.body.classList.toggle('home-empty-active',emptyVisible&&!hasMessages);
+  };
+  sync();
+  const emptyObs=new MutationObserver(sync);
+  emptyObs.observe(empty,{attributes:true,attributeFilter:['style','class']});
+  if(msgInner){
+    const msgObs=new MutationObserver(sync);
+    msgObs.observe(msgInner,{childList:true});
+  }
+})();
 
 window.addEventListener('resize',()=>{
   _syncWorkspacePanelInlineWidth();
@@ -1095,6 +1128,7 @@ const _SKINS=[
   {name:'Sisyphus', colors:['#A78BFA','#8B5CF6','#7C3AED']},
   {name:'Charizard',colors:['#FB923C','#F97316','#EA580C']},
   {name:'Sienna',   colors:['#D97757','#C06A49','#9A523A']},
+  {name:'Sebadebian',colors:['#22D3EE','#0EA5E9','#2563EB']},
 ];
 const _VALID_THEMES=new Set((_THEMES||[]).map(t=>t.value));
 const _VALID_SKINS=new Set((_SKINS||[]).map(s=>s.name.toLowerCase()));
@@ -1274,7 +1308,7 @@ function applyBotName(){
   if(S.activeProfile && S.activeProfile!=='default'){
     name=S.activeProfile.charAt(0).toUpperCase()+S.activeProfile.slice(1);
   }else{
-    name=window._botName||'Hermes';
+    name=window._botName||'seb.deb';
   }
   document.title=name;
   const sidebarH1=document.querySelector('.sidebar-header h1');
@@ -1303,7 +1337,7 @@ function applyBotName(){
     window._simplifiedToolCalling=s.simplified_tool_calling!==false;
     window._sidebarDensity=(s.sidebar_density==='detailed'?'detailed':'compact');
     window._busyInputMode=(s.busy_input_mode||'queue');
-    window._botName=s.bot_name||'Hermes';
+    window._botName=s.bot_name||'seb.deb';
     if(s.default_model) window._defaultModel=s.default_model;
     // Persist default workspace so the blank new-chat page can show it
     // and workspace actions (New file/folder) work before the first session (#804).
@@ -1337,7 +1371,7 @@ function applyBotName(){
     window._simplifiedToolCalling=true;
     window._sidebarDensity='compact';
     window._busyInputMode='queue';
-    window._botName='Hermes';
+    window._botName='seb.deb';
     _bootSettings={check_for_updates:false};
     if(typeof setLocale==='function'){
       const _lang=typeof resolvePreferredLocale==='function'

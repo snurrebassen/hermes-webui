@@ -1,7 +1,7 @@
 {
-  "name": "Hermes",
-  "short_name": "Hermes",
-  "description": "Hermes AI Agent Web UI",
+  "name": "seb.deb",
+  "short_name": "seb.deb",
+  "description": "seb.deb AI Agent Web UI",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#1a1a1a",

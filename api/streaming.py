@@ -462,6 +462,12 @@ def _build_native_multimodal_message(workspace_ctx: str, msg_text: str, attachme
             if size <= 0 or size > _NATIVE_IMAGE_MAX_BYTES:
                 continue
             mime = str(att.get('mime') or '').strip() or (mimetypes.guess_type(path.name)[0] or '')
+            mime_base = mime.split(';', 1)[0].lower()
+            # Keep SVG uploads available in chat/workspace, but do not forward SVG
+            # as native multimodal image input. Some providers (e.g. openai-codex)
+            # reject image/svg+xml in image_url payloads.
+            if mime_base == 'image/svg+xml':
+                continue
             if not mime.startswith('image/') or not _is_valid_image(path, mime):
                 continue
             data = base64.b64encode(path.read_bytes()).decode('ascii')

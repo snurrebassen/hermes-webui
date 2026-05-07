@@ -4220,13 +4220,14 @@ function _rememberAppearanceSaved(payload){
 
 function _scheduleAppearanceAutosave(){
   const payload=_appearancePayloadFromUi();
-  // Keep discard/close behavior aligned with the new mental model: appearance
-  // changes are committed immediately instead of treated as preview-only edits.
+  // Appearance changes should survive immediate hard refreshes. A debounced
+  // autosave can be lost if the page is reloaded before the timer fires.
+  // Save immediately so theme/skin picks persist reliably.
   _rememberAppearanceSaved(payload);
   _settingsAppearanceAutosaveRetryPayload=payload;
   _setAppearanceAutosaveStatus('saving');
   if(_settingsAppearanceAutosaveTimer) clearTimeout(_settingsAppearanceAutosaveTimer);
-  _settingsAppearanceAutosaveTimer=setTimeout(()=>_autosaveAppearanceSettings(payload),350);
+  _autosaveAppearanceSettings(payload);
 }
 
 async function _autosaveAppearanceSettings(payload){
@@ -4562,7 +4563,7 @@ async function loadSettingsPanel(){
     // Bot name — debounced autosave (text input)
     const botNameField=$('settingsBotName');
     if(botNameField){
-      botNameField.value=settings.bot_name||'Hermes';
+      botNameField.value=settings.bot_name||'seb.deb';
       let botNameTimer=null;
       botNameField.addEventListener('input',()=>{
         if(botNameTimer) clearTimeout(botNameTimer);
@@ -5016,7 +5017,7 @@ function _applySavedSettingsUi(saved, body, opts){
   window._simplifiedToolCalling=body.simplified_tool_calling!==false;
   window._sidebarDensity=sidebarDensity==='detailed'?'detailed':'compact';
   window._busyInputMode=body.busy_input_mode||'queue';
-  window._botName=body.bot_name||'Hermes';
+  window._botName=body.bot_name||'seb.deb';
   if(typeof applyBotName==='function') applyBotName();
   if(typeof setLocale==='function') setLocale(language);
   if(typeof applyLocaleToDOM==='function') applyLocaleToDOM();
@@ -5126,7 +5127,7 @@ async function saveSettings(andClose){
   body.busy_input_mode=busyInputMode;
   body.auto_title_refresh_every=(($('settingsAutoTitleRefresh')||{}).value||'0');
   const botName=(($('settingsBotName')||{}).value||'').trim();
-  body.bot_name=botName||'Hermes';
+  body.bot_name=botName||'seb.deb';
   // Password: only act if the field has content; blank = leave auth unchanged
   if(pw && pw.trim()){
     try{
