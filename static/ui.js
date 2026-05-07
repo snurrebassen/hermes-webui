@@ -833,7 +833,9 @@ function _positionModelDropdown(){
   const footer=document.querySelector('.composer-footer');
   if(!dd||!footer) return;
   const panel=$('composerMobileConfigPanel');
-  const anchor=(panel&&panel.classList.contains('open')&&mobileAction)?mobileAction:(chip&&chip.offsetParent?chip:mobileAction);
+  // If the home screen is empty and we are showing desktop chips via sebadebian skin overrides, anchor them directly to the visible chip
+  const isHomeEmptyOverride = document.body.classList.contains('home-empty-active') && document.documentElement.dataset.skin === 'sebadebian';
+  const anchor=(isHomeEmptyOverride && chip && chip.offsetParent) ? chip : ((panel&&panel.classList.contains('open')&&mobileAction)?mobileAction:(chip&&chip.offsetParent?chip:mobileAction));
   if(!anchor) return;
   const chipRect=anchor.getBoundingClientRect();
   const footerRect=footer.getBoundingClientRect();
