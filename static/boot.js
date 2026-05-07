@@ -1439,12 +1439,14 @@ function applyBotName(){
   const saved=urlSession||savedLocal;
   if(saved){
     try{
-      const isMobile = window.innerWidth <= 768;
+      const isMobile = window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
       const isSebadebian = document.documentElement.dataset.skin === 'sebadebian';
-      const forceSidebarOnly = !urlSession && savedLocal && (
-        (await _savedSessionShouldStaySidebarOnly(savedLocal)) ||
-        (isMobile && isSebadebian)
-      );
+      
+      // Force start screen if:
+      // 1) we are auto-loading from localStorage (no URL session) AND it's a mobile Sebadebian boot
+      // 2) OR the session is a pending sidebar-only state
+      const forceSidebarOnly = (!urlSession && isMobile && isSebadebian) || 
+                               (!urlSession && savedLocal && await _savedSessionShouldStaySidebarOnly(savedLocal));
 
       if(forceSidebarOnly){
         S.session=null; S.messages=[]; S.activeStreamId=null; S.busy=false;
