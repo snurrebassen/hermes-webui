@@ -1085,23 +1085,45 @@
     display:none !important;
   }
   :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel {
-    display:flex !important;
-    flex-direction:row;
-    position:static;
-    box-shadow:none;
-    border:none;
-    background:transparent;
-    padding:0;
-    gap: 8px;
+    display: flex !important;
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: static;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+    padding: 0;
+    gap: 12px;
     opacity: 1;
     visibility: visible;
     transform: none;
+    width: 100%;
+    max-width: 520px; /* aligns with home-starter max-width */
+    margin: 16px auto 0;
   }
-  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel > * {
-    padding: 6px 12px;
-    background: var(--input-bg);
-    border-radius: 8px;
-    border: 1px solid var(--border2);
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action {
+    flex: 1 1 calc(50% - 12px);
+    min-width: 160px;
+    padding: 12px 14px;
+    background: var(--input-bg) !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--border2) !important;
+    gap: 12px;
+    align-items: center;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action .composer-mobile-config-kicker {
+    display: block !important;
+    font-size: 11px;
+    margin-bottom: 2px;
+    color: var(--muted);
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action .composer-mobile-config-value {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-action:hover {
+    border-color: var(--border) !important;
+    background: var(--hover-bg) !important;
   }
 
   .composer-box{max-width:780px;margin:0 auto;background:linear-gradient(var(--input-bg),var(--input-bg)),var(--bg);border:1px solid var(--border2);border-radius:16px;display:flex;flex-direction:column;transition:border-color .2s,box-shadow .2s;position:relative;z-index:2;}
