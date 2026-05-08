@@ -2899,7 +2899,9 @@ function syncWorkspaceDisplays(){
   const defaultWs=(typeof S._profileDefaultWorkspace==='string'&&S._profileDefaultWorkspace)||'';
   const ws=hasSession?S.session.workspace:(defaultWs||'');
   const hasWorkspace=!!(ws);
-  const label=hasWorkspace?getWorkspaceFriendlyName(ws):t('no_workspace');
+  const isHomeEmpty=!!(document.body&&document.body.classList&&document.body.classList.contains('home-empty-active'));
+  const homePrompt=t('workspace_choose_path')||'Choose workspace';
+  const label=hasWorkspace?getWorkspaceFriendlyName(ws):(isHomeEmpty?homePrompt:t('no_workspace'));
 
   const sidebarName=$('sidebarWsName');
   const sidebarPath=$('sidebarWsPath');
@@ -2911,13 +2913,15 @@ function syncWorkspaceDisplays(){
   const mobileAction=$('composerMobileWorkspaceAction');
   const mobileLabel=$('composerMobileWorkspaceLabel');
   const composerDropdown=$('composerWsDropdown');
-  if(!hasWorkspace && composerDropdown) composerDropdown.classList.remove('open');
+  // Keep workspace switching available on the home/start screen even before a
+  // session has an attached workspace.
+  const canOpenWorkspaceSelector=!!(hasWorkspace||S._bootReady);
   // Only show workspace label once boot has finished to prevent
   // flash of "No workspace" before the saved session finishes loading.
   if(composerLabel) composerLabel.textContent=S._bootReady?label:'';
   if(mobileLabel) mobileLabel.textContent=S._bootReady?label:'';
   if(composerChip){
-    composerChip.disabled=!hasWorkspace;
+    composerChip.disabled=!canOpenWorkspaceSelector;
     composerChip.title=hasWorkspace?ws:t('no_workspace');
     composerChip.classList.toggle('active',!!(composerDropdown&&composerDropdown.classList.contains('open')));
   }

@@ -1109,6 +1109,25 @@
   :root[data-skin="sebadebian"] body.home-empty-active .composer-reasoning-wrap {
     display: flex !important;
   }
+  /* Start screen: workspace control should open selector, not files sidebar. */
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-group{
+    width:auto !important;
+    min-width:0 !important;
+    max-width:284px !important;
+    border:1px solid var(--border2) !important;
+    border-radius:999px !important;
+    overflow:hidden !important;
+    background:transparent !important;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-files-btn{
+    display:none !important;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chip{
+    display:inline-flex !important;
+    max-width:284px !important;
+    border-left:none !important;
+    padding:8px 12px !important;
+  }
   
   /* Override mobile logic that normally hides desktop chips */
   @media (max-width: 640px) {
@@ -1511,6 +1530,14 @@
     .composer-mobile-config-action{flex:1 1 0;min-height:44px;min-width:0;background:var(--input-bg);border-color:var(--border);}
     .composer-mobile-context-action{flex:1 0 100%;}
     .composer-divider{display:none;}
+
+    /* Start screen exception: keep workspace selector chip visible/textual. */
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-group{flex:0 0 auto!important;width:auto!important;min-width:0!important;max-width:284px!important;border:1px solid var(--border2)!important;border-radius:999px!important;overflow:hidden!important;background:transparent!important;}
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-files-btn{display:none!important;}
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chip{display:inline-flex!important;max-width:284px!important;min-width:0!important;padding:8px 12px!important;}
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-label,
+    :root[data-skin="sebadebian"] body.home-empty-active #composerWorkspaceLabel,
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chevron{display:inline-flex!important;}
   }
 
   /* Show session-toolsets chip ONLY when the composer-footer container is wide
@@ -1604,6 +1631,13 @@
     .composer-mobile-context-action{flex:1 0 100%;}
     /* icon-only composer chips continue below mobile widths */
     .composer-divider{display:none;}
+    /* Start screen exception: keep workspace selector chip visible/textual. */
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-group{flex:0 0 auto!important;width:auto!important;min-width:0!important;max-width:284px!important;border:1px solid var(--border2)!important;border-radius:999px!important;overflow:hidden!important;background:transparent!important;}
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-files-btn{display:none!important;}
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chip{display:inline-flex!important;max-width:284px!important;min-width:0!important;padding:8px 12px!important;}
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-label,
+    :root[data-skin="sebadebian"] body.home-empty-active #composerWorkspaceLabel,
+    :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chevron{display:inline-flex!important;}
     .composer-status{flex:0 1 auto;min-width:0;max-width:96px;font-size:10px;text-align:right;}
     .send-btn{width:44px;height:44px;}
     .ctx-indicator-wrap{display:none!important;}
