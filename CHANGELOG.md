@@ -1,5 +1,186 @@
 # Hermes Web UI -- Changelog
 
+## [v0.51.22] — 2026-05-07 — 3-PR batch (P0 markdown streaming hotfix + CSP source-map allowance + LaTeX delimiter rendering)
+
+### Fixed (3 PRs)
+
+- **PR #1851** by @ChaseFlorell — **P0 hotfix**: ES module import for `static/vendor/smd.min.js` used a bare specifier (`import * as smd from 'static/vendor/smd.min.js'`) which the [HTML spec](https://html.spec.whatwg.org/multipage/webappapis.html#resolve-a-module-specifier) rejects — relative ES module references must start with `/`, `./`, or `../`. Result: the entire `<script type="module">` block in `static/index.html` failed silently, `window.smd` was never set, and live token-by-token markdown streaming was broken for all users since the streaming-markdown library landed. Fix: change `'static/vendor/smd.min.js'` → `'/static/vendor/smd.min.js'`. 1-LOC change. Browser-verified post-fix: `typeof window.smd === 'object'` with all expected exports (BLOCKQUOTE, CODE_FENCE, EQUATION_BLOCK, etc.). Closes #1849.
+
+- **PR #1852** by @ChaseFlorell — CSP `connect-src 'self'` blocked DevTools-initiated fetches of source maps for the three xterm.js libraries (xterm@5.3.0, xterm-addon-fit@0.8.0, xterm-addon-web-links@0.9.0) loaded from `cdn.jsdelivr.net`. The script tags loaded fine (covered by `script-src https://cdn.jsdelivr.net`), but `.js.map` files are fetched via `connect` and got blocked, emitting CSP violation errors in the console whenever DevTools was open. Fix: add `https://cdn.jsdelivr.net` to `connect-src` in `api/helpers.py:_security_headers()`, alongside the existing `'self'`. Consistent with the existing jsDelivr allowlist on `script-src`/`style-src`/`font-src`. New regression test `test_issue1850_csp_connect_src_jsdelivr.py` pins both the new entry and that `'self'` is preserved. Closes #1850.
+
+- **PR #1848** by @Michaelyklam — Backslash LaTeX delimiters (`\[...\]` for display, `\(...\)` for inline) didn't render through the KaTeX pipeline. The renderer already supported `$$...$$` / `$...$`, but the prior regex for `\\(...\\)` / `\\[...\\]` required a *double* backslash, which is the JavaScript-source escape form, not the form LLMs actually emit in chat content. Result: multi-line display math from real assistant output appeared as raw `\[ ... \]` text with `<br>` line breaks instead of a centered KaTeX block. Fix in `static/ui.js`: math-stash regex relaxed to single backslashes, and the user-bubble path (`_renderUserFencedBlocks`) gets its own pre-escape math stash so backslash delimiters survive `esc()` instead of being HTML-escaped to `&#92;`. Test `test_backslash_latex_delimiters_render_to_katex_placeholders` runs the assistant and user pipelines via Node and asserts no raw delimiter leakage in either rendered output. Closes #1847.
+
+### Maintainer-side absorption
+
+- **`tests/test_streaming_markdown.py` + `tests/test_subpath_frontend_routes.py`** — tightened the smd-import-shape assertions to require the `./` relative form and forbid BOTH bare specifier (broken by ES spec, #1849) AND root-absolute (breaks `/hermes/` subpath mounts). The original tests only forbade root-absolute, which let the bare-specifier regression land unnoticed in the first place. PR #1851's original fix used the root-absolute form (which would have re-broken subpath deployments); the corrected `./` form satisfies both constraints. Subpath safety verified: `new URL('./static/vendor/smd.min.js', 'http://host/hermes/').href === 'http://host/hermes/static/vendor/smd.min.js'`.
+
+- **`static/ui.js` + `tests/test_issue347.py`** (commit `d703959` by @nesquena, opus-4.7-paired) — fix code-fence-vs-math stash ordering in `_renderUserFencedBlocks`. PR #1848 added a math stash to the user-bubble path so backslash LaTeX delimiters survive `esc()` and reach KaTeX, but the math stash ran BEFORE the existing code-fence stash. Result: a user-typed code block containing LaTeX-like syntax (e.g. `` ``` ``\n`\[ a + b \]`\n`` ``` ``) had its math content extracted as KaTeX and rendered as a `<div class="katex-block">` placeholder INSIDE `<pre><code>`, replacing the user's literal source with rendered math. The assistant path (`renderMd()`) had the correct ordering already; the user-bubble path inherited the mistake from the inverted stash order. Fix reorders fences-first, then math, mirroring `renderMd()`. Two regression tests added: one fails pre-fix and asserts no KaTeX wrappers inside `<pre><code>`, one is a sibling guard against an over-correction that would disable user-bubble math entirely.
+
+- **`tests/test_issue1850_csp_connect_src_jsdelivr.py`** (absorbed from PR #1852 follow-up by @ChaseFlorell) — switched to `Path(__file__).resolve().parents[1]` rooting so the test survives being run from a non-repo-root cwd. Matches the pattern in `test_issue1112_csp_google_fonts.py`.
+
+### Tests
+
+4810 → **4817 collected** (+7). Three from #1848 augmenting `test_issue347.py` (Node-driven `_run_renderers()` harness for assistant + user pipelines), two new in `test_issue1850_csp_connect_src_jsdelivr.py`, two from the d703959 user-bubble code-fence-vs-math ordering fix.
+
+### Pre-release verification
+
+- `pytest tests/` — green
+- Live browser-verified at port 8789 against stage-316:
+  - `window.smd` resolves to streaming-markdown module (PR #1851)
+  - `Content-Security-Policy: ...connect-src 'self' https://cdn.jsdelivr.net...` in served headers (PR #1852)
+  - `renderMd()` produces `<div class="katex-block">` for `\[...\]` and `<span class="katex-inline">` for `\(...\)` with no raw delimiter leakage (PR #1848)
+
+## [v0.51.21] — 2026-05-07 — 3-PR batch (P0 hotfix + auto-compression UI + shell route HTML fallback)
+
+### Fixed (3 PRs)
+
+- **PR #1843** by @nesquena — **P0 hotfix**: Avoid double-404 response when Kanban bridge already sent error. Fixes a wire-protocol bug shipped in v0.51.20 #1828 where the new `_kanban_unknown_endpoint` wrapper double-sent a 404 response whenever the inner bridge handler returned `None` (which happens after `bad(...)` calls). Result: concatenated JSON bodies on the wire like `{"error":"task not found"}{"error":"unknown Kanban endpoint: GET ..."}`. Affected every `bad(...)`-returning path in the bridge — task not-found, ImportError 503, LookupError 404, ValueError 400, RuntimeError 409, plus SSE board-resolution failures.
+
+  Fix: in `handle_get/post/patch/delete` (4 call sites), only call `_kanban_unknown_endpoint` when the bridge returned an explicit `False` (truly unmatched). `None` means a response was already sent. New regression test `test_inner_handler_bad_response_does_not_emit_double_404` monkey-patches `_task_log_payload` to force `bad()` and asserts `body.count("}{") == 0`.
+
+  `api/routes.py +20/-12`, 25 LOC test added.
+
+- **PR #1838** by @Michaelyklam — Show auto-compression running state (closes #1832). Bridges Hermes Agent's lifecycle compression status into a WebUI SSE `compressing` event so users see context auto-compression as actively running instead of silently waiting through the LLM summarization pause. Three layers:
+  - `api/streaming.py +27` — new `_agent_status_callback(kind, message)` closure converts agent lifecycle messages matching `'preflight compression'`, `'compressing'`, `'compacting context'`, or `'context too large'` into a `put('compressing', {session_id, message})` SSE event. Wired through fresh-agent (`_agent_kwargs['status_callback']`) and cached-agent reuse (`agent.status_callback = ...`) paths, both gated on `'status_callback' in _agent_params` and `hasattr(agent, 'status_callback')` for backward compatibility with older agent builds.
+  - `static/messages.js +18` — new `source.addEventListener('compressing', ...)` listener mirrors the existing `compressed` listener's session-active gate (returns early if `S.session.session_id !== activeSid` AND if `d.session_id && d.session_id !== activeSid`). Calls `setCompressionUi({phase:'running', automatic:true, ...})` when active.
+  - `tests/test_auto_compression_card.py +50` — three new source-regression tests pinning the listener block, the agent-side bridge predicates, and the listener ordering invariant (`compressing` must precede `compressed` so running phase transitions cleanly to done).
+
+- **PR #1836** by @Michaelyklam — Keep shell route errors HTML (closes #1835). Defense-in-depth fix for restart/update race where the WebUI shell route `/`, `/index.html`, or `/session/...` could bubble an exception out and render a JSON error page. PR wraps the shell-route block in `api/routes.py:handle_get` with a narrow `try/except Exception`, and on failure calls a new `_serve_shell_unavailable()` that returns a minimal `text/html; charset=utf-8` 503 page with `Cache-Control: no-store`. API routes still keep their normal JSON error behavior — only the shell-route block is wrapped. `api/routes.py +34`, 58 LOC test (`test_home_route_internal_error_returns_html_503_not_json` monkey-patches `_INDEX_HTML_PATH` with a broken read, asserts HTML 503 not JSON), 1 PR-media PNG.
+
+### Opus-applied fixes (absorbed in-release)
+
+**From stage-315 absorption pre-release Opus pass:**
+
+- `api/kanban_bridge.py` — Documented `handle_kanban_get`/`handle_kanban_post`/`handle_kanban_patch`/`handle_kanban_delete` three-valued return contract. After PR #1843 made the `False`-vs-`None` distinction load-bearing for the caller's `_kanban_unknown_endpoint` decision, the four entry points still declared `-> bool` while actually returning `True | None | False`. Updated type annotations to `bool | None` and added a docstring on `handle_kanban_get` (with cross-references on the three siblings) so a future contributor adding a new return path can't accidentally produce a `0`/`''` value that would silently revert the double-404 fix. Per Opus pre-release verdict; production behavior unchanged.
+
+### Tests
+
+4805 → **4810 collected** (+5). 4799 passed, 8 skipped (sprint3 prong-2 + QA gating + 2 dev-only spawn from v0.51.15), 1 xfailed, 2 xpassed, 0 failed in 148.5s. JS syntax check 1/1 modified file green (`node -c static/messages.js`). Browser API harness 11/11 endpoints green.
+
+### Pre-release verification
+
+- All 3 PRs CI-green individually
+- File overlap on `api/routes.py` between #1843 (Kanban routes) and #1836 (shell route) resolved cleanly via stage-HEAD rebase — disjoint line ranges (~2629/3429/4607/4621 vs ~2496-2535)
+- Pre-stamp re-fetch: all 3 PR heads still match local rebases (no mid-sweep force-pushes)
+- Opus advisor: SHIP verdict, 1 absorbed in-release (return-type annotation + docstring contract), 1 deferred to follow-up issue (parametrize PR #1843's regression test across GET/POST/PATCH/DELETE for defense-in-depth)
+- No file deletions, no merge-conflict markers, no Python/JS syntax errors
+
+Closes #1832, #1835. Hotfix for v0.51.20 #1828 wire-protocol regression.
+
+## [v0.51.20] — 2026-05-07 — 5-PR contributor follow-on batch (with parallel-discovery resolution)
+
+### Fixed (5 contributor PRs)
+
+- **PR #1828** by @Michaelyklam — Surface stale Kanban client recovery (closes #1823). Three coupled fixes for the `Kanban unavailable: not found` failure mode:
+  - Server-side: explicit Kanban-namespace 404 handler for unknown `/api/kanban/*` GET/POST/PATCH/DELETE endpoints (instead of falling through to bare "not found"), with a hint pointing at stale-cached-bundle as the likely cause.
+  - Client-side: new `_kanbanLooksLikeStaleClientError` predicate + `_kanbanUnavailableHtml` that swaps the diagnostic for stale-client errors and surfaces a `Hard refresh now` button. The button calls new `hardRefreshWebUIClient()` which `unregister()`s service workers, deletes every Cache-API entry, then `window.location.reload()`s — gives Mac WKWebView users an in-app escape hatch that doesn't depend on Cmd+Shift+R or DevTools.
+  - Board-pointer drift recovery: `loadKanban` now `await`s `loadKanbanBoards()` BEFORE board-scoped `/api/kanban/config` requests; `loadKanbanBoards` clears the saved slug to `default` when the saved slug doesn't match any current board; `/api/kanban/boards` server-side falls back to default if the on-disk current-board pointer references an archived/deleted board.
+  - `api/kanban_bridge.py +12`, `api/routes.py +29`, `static/panels.js +47/-3`. 92 LOC test coverage across 2 files (`test_issue1823_kanban_not_found.py`, `test_kanban_bridge.py`). 1 PR-media diagnostic screenshot.
+
+- **PR #1827** by @Michaelyklam — Sync Codex provider card models with picker (follow-up to v0.51.19 #1812). Replaces #1812's pure-live-fetch hook in `api/providers.py` with a richer live-plus-Codex-cache merge. The agent's `provider_model_ids("openai-codex")` filters IDs with `supported_in_api: false`, but Codex CLI still surfaces some of those models in its picker — notably `gpt-5.3-codex-spark` (#1680). Merging the visible Codex local cache (via existing `_read_visible_codex_cache_model_ids` helper in `api/config.py`) keeps the providers card in sync with what the picker actually shows. Uses the existing private helpers `_read_live_provider_model_ids`, `_read_visible_codex_cache_model_ids`, `_models_from_live_provider_ids` from `api/config.py` (already used by the picker path). 19 net LOC + 50 LOC test (`test_provider_management.py::test_openai_codex_provider_card_prefers_live_catalog`).
+
+- **PR #1826** by @Michaelyklam — Allow no-agent cron edits without prompt (closes #1820). Cron editor now distinguishes agent jobs from no-agent CLI `--no-agent --script` jobs (which run scripts directly with no prompt). Plumbs `no_agent` and `script` from cron detail/edit data into `_renderCronForm()`. Detail view shows new Mode badge (`no-agent` / `agent`) + a "No-agent script" row. Edit form: prompt textarea is `disabled`, removes `required` attribute, shows `cron_no_agent_prompt_hint` styled hint listing the script path. `saveCronForm()` skips client-side prompt validation for no-agent edits and omits `prompt` from `/api/crons/update` payload. `static/panels.js +84/-3`, 71 LOC test (`test_cron_no_agent_edit.py`), 1 PR-media screenshot.
+
+- **PR #1825** by @ai-ag2026 — Hide workspace file tree cruft by default (closes #1793). `WORKSPACE_HIDDEN_FILE_NAMES` set + `WORKSPACE_HIDDEN_FILE_PREFIXES` array filter common cruft (`.DS_Store`, `._*`, `Thumbs.db`, `Desktop.ini`, `$RECYCLE.BIN`, `.git`, `.svn`, `.hg`, `node_modules`, `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.venv`, `venv`, `.Trash-*`, `.AppleDouble`, `.Spotlight-V100`, `.Trashes`, `.fseventsd`, `.directory`). New `_visibleWorkspaceEntries()` filter applied in `renderFileTree` and `_renderTreeItems` recursive rendering. "Show hidden files" checkbox toggle in workspace panel header, persisted via `localStorage['hermes-workspace-show-hidden-files']`. Filter is purely client-side display — server-returned tree entries unchanged, toggling re-renders without re-fetching. `static/i18n.js +9`, `static/index.html +4`, `static/style.css +3`, `static/ui.js +33`, 31 LOC test.
+
+- **PR #1822** by @ai-ag2026 — Workspace heading root actions (closes #1786). The "Workspace" panel heading was a static label — the breadcrumb's `~` already navigated to root, but the more prominent label didn't. PR makes the heading a `role="button"` with `tabindex="0"`: click/Enter/Space → `loadDir('.')`, right-click → context menu with "Reveal in Finder" and "Copy file path" actions. Adds module-level helpers: `bindWorkspaceHeadingActions`, `_workspaceContextMenuItem`, `_copyTextWithFallback` (clipboard API with execCommand fallback), `_showWorkspaceRootContextMenu`. `static/index.html +1/-1`, `static/style.css +2`, `static/ui.js +89`, 23 LOC test. Sibling-rebased against #1825 in stage; ui.js conflict resolved by concatenating both additive blocks (verified with `node -c`).
+
+### Opus-applied fixes (absorbed in-release)
+
+**From stage-314 absorption pre-release Opus pass:**
+
+- `static/panels.js` — Removed duplicate `await loadKanbanBoards()` tail call in `loadKanban()`. PR #1828 added a pre-fetch at the start of `loadKanban` to resolve the active board BEFORE board-scoped requests, but the existing tail-of-function refresh at line 1278 was kept too. Under SSE-driven refreshes (debounced at 250ms via `_scheduleKanbanRefresh`), this doubled `/api/kanban/boards` traffic with no behavioral benefit — the 30-second polling interval started by `_kanbanStartPolling()` already picks up board-state changes that arrive after the render. Per Opus pre-release verdict.
+
+**From stage-314 pre-Opus pytest absorb:**
+
+- `tests/test_issue1807_codex_provider_card_live_models.py` — Added `CODEX_HOME` isolation in `_configure_codex` helper. v0.51.19's tests didn't isolate the Codex local model cache, but PR #1827's new `_read_visible_codex_cache_model_ids()` merging makes this load-bearing — without isolation, the dev machine's real `~/.codex/models_cache.json` (containing `gpt-5.3-codex-spark` from #1680) leaks into test output. Test-only fix; production code unchanged. Caught by pre-release pytest gate.
+
+### Maintainer triage
+
+- **PR #1821** by @ai-ag2026 — Closed as **parallel-discovery superseded by #1826**. Both PRs filed within hours of each other (Michaelyklam predates by ~3 hours), both correctly diagnosed the bug. Same fix shape (form `required` removal + validation skip + payload omission), but #1826 covers more surface (Mode badge in detail view, `disabled` prompt instead of just optional, i18n hint key, screenshot). Closed with structured "superseded" comment crediting the convergent diagnosis — Co-authored-by trailer optional since the fixes are independent, but the convergence is acknowledged in the close comment.
+
+### Tests
+
+4790 → **4805 collected** (+15). 4794 passed, 8 skipped (sprint3 prong-2 + QA gating + 2 dev-only spawn from v0.51.15), 1 xfailed, 2 xpassed, 0 failed in 156.7s. JS syntax check 3/3 modified files green (`node -c` on i18n.js, panels.js, ui.js). Browser API harness 11/11 endpoints green.
+
+### Pre-release verification
+
+- All 5 PRs CI-green individually
+- File overlaps resolved via stage-HEAD rebasing for sibling PRs (#1822 + #1825 both touched `static/ui.js` after `renderBreadcrumb()` and adjacent `index.html`/`style.css` blocks; conflict in `ui.js` resolved by concatenation)
+- Pre-stamp re-fetch: all 5 PR heads still match local rebases (no mid-sweep force-pushes)
+- Opus advisor: SHIP verdict, 1 absorbed in-release (loadKanbanBoards perf cleanup), 4 deferred to follow-up issues (lowercase 404 false-positive, `_currentCronDetail` vs `_cronPreFormDetail` robustness, #1825 i18n debt for 7 locales, #1822 heading no-op when no workspace)
+- No file deletions, no merge-conflict markers, no Python/JS syntax errors
+
+Closes #1786, #1793, #1820 (via #1826, with #1821 closed as parallel-discovery superseded), #1823.
+
+Note: #1827 is a follow-up enhancement to v0.51.19 #1812 (the original `Closes #1807` reference is from when #1807 was still open; #1807 was closed by #1812 in v0.51.19, so this PR's release attribution is "follow-up enhancement to #1812" rather than "closes #1807").
+
+## [v0.51.19] — 2026-05-07 — 15-PR contributor sweep + 1 in-stage absorb
+
+### Fixed (15 contributor PRs)
+
+- **PR #1798** by @Michaelyklam — Workspace path inaccessibility (closes #1795 P0/M1). `_clean_workspace_list()` was destructive on macOS TCC denial — `Path(...).resolve().is_dir()` returned `False` for permission-denied directories, then `load_workspaces()` re-persisted the cleaned list, silently deleting registered workspaces. Replaced predicate with non-destructive `_safe_resolve()` and added `_workspace_access_error()` branching on `FileNotFoundError`/`PermissionError`/`OSError`/`S_ISDIR` so error messages distinguish missing vs. inaccessible paths. `api/workspace.py +49`, 82 LOC test coverage including TCC simulation via `Path.stat` monkeypatch.
+
+- **PR #1816** by @MacLeodMike — IPv6 bind address support. `ThreadingHTTPServer` defaulted `address_family = socket.AF_INET`, so binding to `::` or `::1` raised `EAFNOSUPPORT`. New `QuietHTTPServer.__init__` detects `':'` in host string and flips `address_family = socket.AF_INET6` before `super().__init__()`. Loopback warning gate adds `::1` to existing `127.0.0.1` check. `server.py +7`, 6 LOC.
+
+- **PR #1815** by @Saik0s — `bootstrap.py` venv creation uses `symlinks=True`. CPython's `venv.EnvBuilder` defaults `symlinks=False` for shared-library Python builds (notably mise/asdf-installed CPython on macOS); the copied `python3.X` binary still references `@executable_path/../lib/libpython3.X.dylib` but the dylib never gets copied into `.venv/lib/`, so the first import aborts with SIGABRT. Symlinking the interpreter keeps `@executable_path` resolving back to the original install. Falls back to copy mode automatically on Windows without `SeCreateSymbolicLinkPrivilege`. `bootstrap.py +9/-1`, 1 LOC + 34 LOC test.
+
+- **PR #1817** by @Saik0s — `bootstrap.py` discovers agent dir via `hermes` CLI shebang. Last-resort fallback after the hard-coded candidate list misses: reads `which("hermes")`'s shebang, walks up the parents of the interpreter until it finds a directory containing `run_agent.py`. Catches non-standard installs like `~/Projects/GitHub/hermes-agent` that were previously rejected with the misleading "Python environment cannot import both WebUI dependencies and Hermes Agent" error. `bootstrap.py +44`, 106 LOC test.
+
+- **PR #1818** by @franksong2702 — Named custom provider routing (closes #1806). `model.provider: ollama-local` (or any `<custom_providers[].name>`) now normalizes to the same `custom:<name>` slug the model picker emits, BEFORE picker rendering or model resolution. Eliminates the duplicate-group bug where WebUI was building a stale `custom:local-(127.0.0.1:11434)` group from agent-side base-url-derived data while a named `custom_providers[]` entry existed for the same endpoint. The stale slug routes to an unsettable env var name (`CUSTOM:LOCAL-(127.0.0.1:11434)_API_KEY`) — fixed by base-url-to-named-slug mapping that drops base-url-derived `custom:*` slugs when a named slug owns the same endpoint. `api/config.py +151`, 116 LOC test (`test_issue1806_named_custom_provider_resolution.py`). Three new helpers: `_custom_provider_slug_from_name`, `_named_custom_provider_slug_for_provider`, `_resolve_configured_provider_id`. `_normalize_base_url_for_match` hoisted from inner function to module scope for reuse by `_named_custom_provider_slug_for_base_url`.
+
+- **PR #1805** by @franksong2702 — Provider account quota cards. Extends `/api/provider/quota` beyond OpenRouter to OAuth-backed providers (`openai-codex`, `anthropic`). `_fetch_account_usage_with_profile_context` enters `cron_profile_context_for_home(home)` so `agent.account_usage.fetch_account_usage()` reads the active WebUI profile's `HERMES_HOME` (auth.json + .env) instead of the process-default `~/.hermes`. Serializes `AccountUsageSnapshot` to JSON with `available`/`windows`/`details`/`plan`/`unavailable_reason`. `static/panels.js` adds `_formatProviderQuotaWindowLabel` mapping for codex window labels (`Session` → `5-hour limit`, `Weekly` → `Weekly limit`). `api/providers.py +95`, `static/panels.js +55`, 152 LOC test.
+
+- **PR #1812** by @franksong2702 — Live Codex models in provider card (closes #1807). The Codex card was building from `_PROVIDER_MODELS["openai-codex"]` (curated 7-entry static snapshot) which drifted behind whatever ChatGPT was serving for a given account. Now calls `hermes_cli.models.provider_model_ids("openai-codex")` which does live OAuth → ChatGPT model catalog fetch, falls back to agent's hardcoded catalog → WebUI's `_PROVIDER_MODELS` only on exception. Mirrors the existing Nous Portal pattern. `api/providers.py +101/-0`, 81 LOC test.
+
+- **PR #1797** by @Michaelyklam — Preserve first-turn sidebar row during refresh (closes #1792). `renderSessionList()` was unconditionally clobbering `_allSessions = sessData.sessions || []`, so a server response that lagged behind a just-started first-turn session would overwrite the optimistic row inserted by `upsertActiveSessionForLocalTurn()`. Replaced with `_mergeOptimisticFirstTurnSessions()` gated on a focused `_isOptimisticFirstTurnSessionRow()` predicate (checks `is_streaming`/`active_stream_id`/`pending_user_message`/`pending_started_at`/`_isSessionLocallyStreaming`/`_sessionStreamingById`). `static/sessions.js +65/-1`, 17 LOC test.
+
+- **PR #1802** by @ai-ag2026 — Cross-surface session continuations stay visible. Backend marks `_cross_surface_child_session` when a parent/child session pair comes from different surfaces (e.g. messaging parent → webui child after compaction). Frontend keeps marked rows as top-level sidebar entries instead of nesting them under the parent surface's row (where they'd be invisible). Same-surface child sessions still nest as before. `api/agent_sessions.py +4`, `static/sessions.js +4`, 92 LOC test across 2 files.
+
+- **PR #1819** by @dso2ng — Approval/clarify prompts session-owned (closes #1694). `static/messages.js` introduces `_approvalPendingBySession`/`_clarifyPendingBySession` Maps keyed by `session_id`. New gate inside `showApprovalCard`/`showClarifyCard` — caches but does NOT paint when `_approvalPromptBelongsToActiveSession(sid)` is false. `loadSession` calls `_renderPendingPromptsForActiveSession()` to render cached prompts when user switches back to the owner session. Polling-empty/SSE-empty branches route through `_hideApprovalCardIfOwner(sid)` so Sprint 30's 30-second visibility guard for the active pane is preserved while still clearing background-owner caches. `static/messages.js +199/-30`, 106 LOC test.
+
+- **PR #1813** by @ai-ag2026 — Hide workspace metadata in user bubbles. New `_stripWorkspaceDisplayPrefix()` strips `^\s*\[Workspace:[^\]]+\]\s*` from user-bubble display ONLY (start-anchored, mid-text occurrences preserved). `m.content` itself unchanged — search/export/history keep metadata. `row.dataset.rawText` updated to use `displayContent` so edit/copy round-trips from visible text. `static/ui.js +45/-2`, 39 LOC test. (Replaces #1810, which was based on a stale fork branch.)
+
+- **PR #1801** by @Michaelyklam — Error toasts copy-friendly (closes #1796). `showToast()` switched from `ms || 2800` to `ms == null` so explicit `0` is honored. New `TOAST_ERROR_DEFAULT_MS=20000` for type-aware default. Error toasts get inline Copy button (`<button class="toast-copy">`) — captured via `dataset.toastMessage` to avoid serializing the button label. Hover/focus pause via `onmouseenter`/`onmouseleave`/`onfocusin`/`onfocusout` toggling the dismiss timer. `static/ui.js +47/-2`, `static/style.css +20`, 38 LOC test + 3 PNG screenshots.
+
+- **PR #1803** by @franksong2702 — File picker + HTML preview interactions (closes #1800). Three coupled fixes:
+  - `static/index.html` + `static/style.css` make file input visually-hidden via positioned `position:absolute;left:-9999px;width:1px;height:1px;opacity:0` instead of `display:none` (some browser shells suppress click on `display:none` inputs).
+  - `static/boot.js` `btnAttach` switched to non-submit handler with `e.preventDefault()` + value reset.
+  - `api/routes.py` HTML media path adds `Content-Security-Policy: sandbox allow-scripts` header only when `?inline=1`, otherwise serves with `Content-Disposition: attachment` + `X-Frame-Options: DENY`. `static/ui.js` builds inline open URL with `?inline=1` for HTML attachment badges.
+  - `api/routes.py +21`, `static/{boot,index,ui}.{js,html}` + `style.css` ~25 LOC, 116 LOC test (test_issue1800 + test_media_inline extension).
+
+- **PR #1809** by @ai-ag2026 — Dedupe workspace-prefixed user turns after compaction. Adds `_strip_workspace_prefix()` in `api/streaming.py` and uses it for identity/key comparison in `_merge_display_messages_after_agent_result`. Compaction returning a `[Workspace: …]\n…` user turn no longer creates a duplicate visible user bubble alongside the prior optimistic visible turn. Stores the visible user prompt in the display transcript when a model result returns the current user turn with workspace metadata. `api/streaming.py +29/-2`, 47 LOC test.
+
+- **PR #1811** by @ai-ag2026 — Workspace user turn repair script. New standalone `scripts/repair_workspace_user_turns.py` for historical transcript hygiene. Cleans `[Workspace: …]` prefixes from sidecar JSON + optionally SQLite `state.db`. Strips prefixes, removes adjacent duplicate user turns after normalization, backs up mutated files, refreshes message/tool counts. NOT auto-run on startup — manual operator-invoked migration utility. `scripts/repair_workspace_user_turns.py +187` (new file), 91 LOC test.
+
+### Opus-applied fixes (absorbed in-release)
+
+**From stage-313 absorption pre-release Opus pass:** none. Opus verdict was clean SHIP after the two pre-Opus pytest-driven absorbs below.
+
+**From stage-313 pre-Opus pytest absorb:**
+
+- `api/config.py` — Added `resolve_alias=False` flag to `_resolve_configured_provider_id()`. PR #1818's swap from `_resolve_provider_alias()` to `_resolve_configured_provider_id()` was correct for active-provider/badge surfaces but broke #1625's local-server-provider literal-preservation contract. Specifically, `'ollama' → 'custom'` aliasing caused `_LOCAL_SERVER_PROVIDERS` membership check to miss in `resolve_model_provider()`, breaking the full-model-id-preservation branch for LM Studio/Ollama (which require the unstripped `qwen/qwen3.6-27b` form). The new flag preserves the raw provider value when called from `resolve_model_provider`, while named-custom-slug + base-url fallback both still run unchanged. All other callers (badge surfaces, auth-store fallback, configured-provider hint resolution) keep `resolve_alias=True`. Caught by pre-release pytest gate.
+
+- `tests/test_bootstrap_discover_agent.py` — `_isolate_discover_agent_dir()` helper now pins `Path.home()` via `monkeypatch.setattr(bootstrap.Path, "home", classmethod(lambda cls: tmp_path / "isolated-home"))`. Original PR #1817 helper cleared `HERMES_HOME` + `HERMES_WEBUI_AGENT_DIR` and pinned `REPO_ROOT`, but didn't isolate the hard-coded `Path.home() / ".hermes" / "hermes-agent"` and `Path.home() / "hermes-agent"` candidates in `discover_agent_dir()` — so the dev's real install at `~/.hermes/hermes-agent` matched first and tests failed. Test-only fix; production code unchanged. Caught by pre-release pytest gate.
+
+### Maintainer triage
+
+- **PR #1814** by @hualong1009 — Marked `maintainer-review`. Targets the same #1806 root cause as #1818 but operates at the runtime layer (call-site fallbacks in `api/routes.py`/`api/streaming.py`) rather than the config layer. Complementary in principle; held because the PR ships 96 LOC of branchy resolution logic with zero unit tests and includes a slug-normalization helper that duplicates #1818's `_custom_provider_slug_from_name`. Posted structured comment with three actionable asks (add tests, dedup with #1818's helpers post-merge, extract the 4× duplicated call-site fallback block into a helper). Author can revise on top of v0.51.19 once #1818 has shipped.
+
+### Tests
+
+4747 → **4790 collected** (+43). 4776 passed, 11 skipped (test-isolation prong-2 + QA gating + dev-only spawn), 1 xfailed, 2 xpassed, 0 failed in 145.9s. JS syntax check 5/5 modified files green (`node -c`). Browser API harness 11/11 endpoints green.
+
+### Pre-release verification
+
+- All 15 PRs CI-green individually
+- File overlaps resolved via stage-HEAD rebasing for sibling PRs (sessions.js: 1797/1802/1819; ui.js: 1801/1803/1813; api/providers.py: 1805/1812; bootstrap.py: 1815/1817; CHANGELOG.md stripped from contributor branches before merge)
+- Pre-stamp re-fetch: all 15 PR heads still match local rebases (no mid-sweep force-pushes)
+- Opus advisor: SHIP verdict, 0 MUST-FIX, 0 SHOULD-FIX in-release. Two narrow follow-ups filed as new issues (named-custom-collides-with-local-provider edge case, `_cron_env_lock` process-wide serialization).
+- No file deletions, no merge-conflict markers, no Python/JS syntax errors
+
+Closes #1792, #1795, #1796, #1800, #1806, #1807, #1694.
+
 ## [v0.51.18] — 2026-05-07 — 5-PR batch (4 contributor + 1 self-built UX polish)
 
 ### Fixed

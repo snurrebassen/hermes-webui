@@ -590,6 +590,19 @@ from api.agent_health import build_agent_health_payload
 from api.system_health import build_system_health_payload
 
 
+def _kanban_unknown_endpoint(handler, parsed, method: str) -> bool:
+    """Return a Kanban-specific 404 for stale clients/obsolete endpoint shapes."""
+    return bad(
+        handler,
+        (
+            f"unknown Kanban endpoint: {method} {parsed.path}. "
+            "If this appeared after a WebUI update, your browser may be running "
+            "a stale cached bundle; use Hard refresh now, then reopen Kanban."
+        ),
+        status=404,
+    ) or True
+
+
 def _clear_stale_stream_state(session) -> bool:
     """Clear persisted streaming flags when the in-memory stream no longer exists.
 
@@ -2496,6 +2509,34 @@ def _handle_plugins(handler, parsed) -> bool:
         )
 
 
+_SHELL_ERROR_HTML = """<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+  <title>Hermes is restarting</title>
+</head>
+<body style=\"margin:0;padding:2rem;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111827;color:#e5e7eb;\">
+  <main style=\"max-width:40rem;margin:10vh auto;line-height:1.5;\">
+    <h1 style=\"font-size:1.5rem;margin:0 0 0.75rem;\">Hermes is restarting…</h1>
+    <p style=\"margin:0;color:#cbd5e1;\">The WebUI shell could not load cleanly. Refresh in a moment if this page does not update automatically.</p>
+  </main>
+</body>
+</html>"""
+
+
+def _serve_shell_unavailable(handler, exc: Exception) -> bool:
+    """Return HTML for shell-route failures so `/` never renders JSON."""
+    logger.warning("Failed to serve WebUI shell route: %s", exc)
+    t(
+        handler,
+        _SHELL_ERROR_HTML,
+        status=503,
+        content_type="text/html; charset=utf-8",
+    )
+    return True
+
+
 def handle_get(handler, parsed) -> bool:
     """Handle all GET routes. Returns True if handled, False for 404."""
 
@@ -2507,17 +2548,20 @@ def handle_get(handler, parsed) -> bool:
         return _serve_static(handler, stripped)
 
     if parsed.path in ("/", "/index.html") or parsed.path.startswith("/session/"):
-        from urllib.parse import quote
-        from api.updates import WEBUI_VERSION
-        version_token = quote(WEBUI_VERSION, safe="")
-        from api.extensions import inject_extension_tags
+        try:
+            from urllib.parse import quote
+            from api.updates import WEBUI_VERSION
+            version_token = quote(WEBUI_VERSION, safe="")
+            from api.extensions import inject_extension_tags
 
-        html = _INDEX_HTML_PATH.read_text(encoding="utf-8").replace("__WEBUI_VERSION__", version_token)
-        return t(
-            handler,
-            inject_extension_tags(html),
-            content_type="text/html; charset=utf-8",
-        )
+            html = _INDEX_HTML_PATH.read_text(encoding="utf-8").replace("__WEBUI_VERSION__", version_token)
+            return t(
+                handler,
+                inject_extension_tags(html),
+                content_type="text/html; charset=utf-8",
+            )
+        except Exception as exc:
+            return _serve_shell_unavailable(handler, exc)
 
     if parsed.path == "/login":
         _settings = load_settings()
@@ -2616,7 +2660,13 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path.startswith("/api/kanban/"):
         from api.kanban_bridge import handle_kanban_get
 
-        return handle_kanban_get(handler, parsed)
+        # Only treat an explicit False as "no route matched". None means the
+        # bridge already sent a response via bad()/j() — emitting our own 404
+        # on top of that produces concatenated JSON bodies on the wire.
+        result = handle_kanban_get(handler, parsed)
+        if result is False:
+            return _kanban_unknown_endpoint(handler, parsed, "GET")
+        return True
     if parsed.path == "/api/wiki/status":
         return _handle_llm_wiki_status(handler, parsed)
     if parsed.path == "/api/logs":
@@ -3414,7 +3464,10 @@ def handle_post(handler, parsed) -> bool:
     if parsed.path.startswith("/api/kanban/"):
         from api.kanban_bridge import handle_kanban_post
 
-        return handle_kanban_post(handler, parsed, body)
+        result = handle_kanban_post(handler, parsed, body)
+        if result is False:
+            return _kanban_unknown_endpoint(handler, parsed, "POST")
+        return True
     if parsed.path == "/api/dashboard/config":
         from api import dashboard_probe
 
@@ -4590,7 +4643,10 @@ def handle_patch(handler, parsed) -> bool:
     if parsed.path.startswith("/api/kanban/"):
         from api.kanban_bridge import handle_kanban_patch
 
-        return handle_kanban_patch(handler, parsed, body)
+        result = handle_kanban_patch(handler, parsed, body)
+        if result is False:
+            return _kanban_unknown_endpoint(handler, parsed, "PATCH")
+        return True
     return False
 
 
@@ -4602,7 +4658,10 @@ def handle_delete(handler, parsed) -> bool:
     if parsed.path.startswith("/api/kanban/"):
         from api.kanban_bridge import handle_kanban_delete
 
-        return handle_kanban_delete(handler, parsed, body)
+        result = handle_kanban_delete(handler, parsed, body)
+        if result is False:
+            return _kanban_unknown_endpoint(handler, parsed, "DELETE")
+        return True
     return False
 
 # ── GET route helpers ─────────────────────────────────────────────────────────
@@ -5070,8 +5129,17 @@ def _serve_file_bytes(handler, target: Path, mime: str, disposition: str, cache_
     handler.send_header("Cache-Control", cache_control)
     handler.send_header("Content-Disposition", _content_disposition_value(disposition, target.name))
     if csp:
+        # Sandboxed inline HTML must remain frameable for workspace previews;
+        # X-Frame-Options: DENY would block the iframe before CSP sandbox applies.
         handler.send_header("Content-Security-Policy", csp)
-    _security_headers(handler)
+        handler.send_header("X-Content-Type-Options", "nosniff")
+        handler.send_header("Referrer-Policy", "same-origin")
+        handler.send_header(
+            "Permissions-Policy",
+            "camera=(), microphone=(self), geolocation=(), clipboard-write=(self)",
+        )
+    else:
+        _security_headers(handler)
     handler.end_headers()
 
     if content_length:
@@ -5157,8 +5225,9 @@ def _handle_media(handler, parsed):
     ext = target.suffix.lower()
     mime = MIME_MAP.get(ext, "application/octet-stream")
 
-    # Only serve safe media/PDF types inline when explicitly requested. Everything
-    # else remains a download. SVG is always a download (XSS risk).
+    # Only serve safe media/PDF types inline when explicitly requested. HTML is
+    # allowed inline only with a CSP sandbox so "open full page" can work without
+    # granting same-origin access to the WebUI. SVG is always a download (XSS risk).
     _INLINE_IMAGE_TYPES = {
         "image/png", "image/jpeg", "image/gif", "image/webp",
         "image/x-icon", "image/bmp",
@@ -5171,12 +5240,15 @@ def _handle_media(handler, parsed):
     }
     _DOWNLOAD_TYPES = {"image/svg+xml"}  # SVG: XSS risk, force download
     inline_preview = qs.get("inline", [""])[0] == "1"
+    html_inline_ok = inline_preview and mime == "text/html"
     disposition = "inline" if (
         mime not in _DOWNLOAD_TYPES and (
             mime in _INLINE_IMAGE_TYPES or (inline_preview and mime in _INLINE_PREVIEW_TYPES)
+            or html_inline_ok
         )
     ) else "attachment"
-    return _serve_file_bytes(handler, target, mime, disposition, "private, max-age=3600")
+    csp = "sandbox allow-scripts" if html_inline_ok else None
+    return _serve_file_bytes(handler, target, mime, disposition, "private, max-age=3600", csp=csp)
 
 
 def _handle_file_raw(handler, parsed):

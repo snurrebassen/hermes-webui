@@ -367,11 +367,13 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     return _clarifySessionId===activeSid||(!_clarifySessionId&&_isActiveSession());
   }
   function _clearApprovalForOwner(){
+    _clearApprovalPendingForSession(activeSid);
     if(!_approvalBelongsToOwner()) return;
     stopApprovalPolling();
     hideApprovalCard(true);
   }
   function _clearClarifyForOwner(reason){
+    _clearClarifyPendingForSession(activeSid);
     if(!_clarifyBelongsToOwner()) return;
     stopClarifyPolling();
     hideClarifyCard(true, reason||'terminal');
@@ -806,16 +808,14 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
 
     source.addEventListener('approval',e=>{
       const d=JSON.parse(e.data);
-      d._session_id=activeSid;
-      showApprovalCard(d, 1);
+      showApprovalForSession(activeSid, d, 1);
       playNotificationSound();
       sendBrowserNotification('Approval required',d.description||'Tool approval needed');
     });
 
     source.addEventListener('clarify',e=>{
       const d=JSON.parse(e.data);
-      d._session_id=activeSid;
-      showClarifyCard(d);
+      showClarifyForSession(activeSid, d);
       playNotificationSound();
       sendBrowserNotification('Clarification needed',d.question||'Tool clarification needed');
     });
@@ -1009,6 +1009,24 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
           showToast(t('steer_leftover_queued'),3000);
         }
       }catch(_){}
+    });
+
+    source.addEventListener('compressing',e=>{
+      // Context auto-compression is starting. Surface the same calm running
+      // compression card as manual /compress while the summarizer LLM call runs.
+      if(!S.session||S.session.session_id!==activeSid) return;
+      let d={};
+      try{ d=JSON.parse(e.data||'{}')||{}; }catch(_){ d={}; }
+      if(d.session_id&&d.session_id!==activeSid) return;
+      if(typeof setCompressionUi==='function'){
+        setCompressionUi({
+          sessionId:activeSid,
+          phase:'running',
+          automatic:true,
+          message:d.message||'Auto-compressing context...',
+        });
+      }
+      if(typeof renderMessages==='function') renderMessages({preserveScroll:true});
     });
 
     source.addEventListener('compressed',e=>{
@@ -1383,8 +1401,50 @@ function hideApprovalCard(force=false) {
 // Track session_id of the active approval so respond goes to the right session
 let _approvalSessionId = null;
 let _approvalCurrentId = null;  // approval_id of the card currently shown
+let _approvalPendingBySession = new Map();
+
+function _promptActiveSessionId() {
+  return (S.session && S.session.session_id) || null;
+}
+
+function _approvalPromptBelongsToActiveSession(sid) {
+  return !!(sid && _promptActiveSessionId() === sid);
+}
+
+function _rememberApprovalPending(pending, pendingCount) {
+  if (!pending) return null;
+  const sid = pending._session_id || _promptActiveSessionId();
+  if (!sid) return null;
+  const nextPending = {...pending, _session_id: sid};
+  _approvalPendingBySession.set(sid, {pending: nextPending, pendingCount: pendingCount || 1});
+  return sid;
+}
+
+function _clearApprovalPendingForSession(sid) {
+  if (sid) _approvalPendingBySession.delete(sid);
+}
+
+function _hideApprovalCardIfOwner(sid, force=false) {
+  if (!sid || _approvalSessionId === sid) hideApprovalCard(force);
+}
+
+function _renderPendingApprovalForActiveSession() {
+  const sid = _promptActiveSessionId();
+  if (!sid) return;
+  if (_approvalSessionId && _approvalSessionId !== sid) hideApprovalCard(true);
+  const entry = _approvalPendingBySession.get(sid);
+  if (entry) showApprovalCard(entry.pending, entry.pendingCount);
+}
+
+function showApprovalForSession(sid, pending, pendingCount) {
+  if (!pending) return;
+  pending._session_id = sid;
+  showApprovalCard(pending, pendingCount);
+}
 
 function showApprovalCard(pending, pendingCount) {
+  const sid = _rememberApprovalPending(pending, pendingCount);
+  if (!_approvalPromptBelongsToActiveSession(sid)) return;
   const keys = pending.pattern_keys || (pending.pattern_key ? [pending.pattern_key] : []);
   const desc = (pending.description || "") + (keys.length ? " [" + keys.join(", ") + "]" : "");
   const cmd = pending.command || "";
@@ -1393,7 +1453,7 @@ function showApprovalCard(pending, pendingCount) {
   const sameApproval = card.classList.contains("visible") && _approvalSignature === sig;
   $("approvalDesc").textContent = desc;
   $("approvalCmd").textContent = cmd;
-  _approvalSessionId = pending._session_id || (S.session && S.session.session_id) || null;
+  _approvalSessionId = sid;
   _approvalCurrentId = pending.approval_id || null;
   _approvalSignature = sig;
   // Show "1 of N" counter when multiple approvals are queued
@@ -1431,6 +1491,7 @@ async function respondApproval(choice) {
   });
   _approvalSessionId = null;
   _approvalCurrentId = null;
+  _clearApprovalPendingForSession(sid);
   hideApprovalCard(true);
   try {
     await api("/api/approval/respond", {
@@ -1450,14 +1511,14 @@ function startApprovalPolling(sid) {
 
     es.addEventListener('initial', e => {
       const d = JSON.parse(e.data);
-      if (d.pending) { d.pending._session_id = sid; showApprovalCard(d.pending, d.pending_count || 1); }
-      else { hideApprovalCard(); }
+      if (d.pending) { showApprovalForSession(sid, d.pending, d.pending_count || 1); }
+      else { _clearApprovalPendingForSession(sid); _hideApprovalCardIfOwner(sid); }
     });
 
     es.addEventListener('approval', e => {
       const d = JSON.parse(e.data);
-      if (d.pending) { d.pending._session_id = sid; showApprovalCard(d.pending, d.pending_count || 1); }
-      else { hideApprovalCard(); }
+      if (d.pending) { showApprovalForSession(sid, d.pending, d.pending_count || 1); }
+      else { _clearApprovalPendingForSession(sid); _hideApprovalCardIfOwner(sid); }
     });
 
     es.onerror = () => {
@@ -1472,7 +1533,7 @@ function startApprovalPolling(sid) {
     // We detect this via a periodic check (cheap — no network request).
     _approvalSSEHealthTimer = setInterval(() => {
       if (!S.busy || !S.session || S.session.session_id !== sid) {
-        stopApprovalPolling(); hideApprovalCard(true);
+        stopApprovalPolling(); _hideApprovalCardIfOwner(sid, true);
       }
     }, 5000);
 
@@ -1490,12 +1551,12 @@ let _approvalPollingSessionId = null;
 function _startApprovalFallbackPoll(sid) {
   _approvalPollTimer = setInterval(async () => {
     if (!S.busy || !S.session || S.session.session_id !== sid) {
-      stopApprovalPolling(); hideApprovalCard(true); return;
+      stopApprovalPolling(); _hideApprovalCardIfOwner(sid, true); return;
     }
     try {
       const data = await api("/api/approval/pending?session_id=" + encodeURIComponent(sid));
-      if (data.pending) { data.pending._session_id=sid; showApprovalCard(data.pending, data.pending_count||1); }
-      else { hideApprovalCard(); }
+      if (data.pending) { showApprovalForSession(sid, data.pending, data.pending_count||1); }
+      else { _clearApprovalPendingForSession(sid); _hideApprovalCardIfOwner(sid); }
     } catch(e) { /* ignore poll errors */ }
   }, 1500);  // matches the v0.50.247 polling cadence so degraded-mode users see the same responsiveness
 }
@@ -1521,7 +1582,48 @@ let _clarifySessionId = null;
 let _clarifyMissingEndpointWarned = false;
 let _clarifyCountdownTimer = null;
 let _clarifyExpiresAt = 0;
+let _clarifyPendingBySession = new Map();
 const CLARIFY_MIN_VISIBLE_MS = 30000;
+
+function _clarifyPromptBelongsToActiveSession(sid) {
+  return !!(sid && _promptActiveSessionId() === sid);
+}
+
+function _rememberClarifyPending(pending) {
+  if (!pending) return null;
+  const sid = pending._session_id || _promptActiveSessionId();
+  if (!sid) return null;
+  const nextPending = {...pending, _session_id: sid};
+  _clarifyPendingBySession.set(sid, {pending: nextPending});
+  return sid;
+}
+
+function _clearClarifyPendingForSession(sid) {
+  if (sid) _clarifyPendingBySession.delete(sid);
+}
+
+function _hideClarifyCardIfOwner(sid, force=false, reason="dismissed") {
+  if (!sid || _clarifySessionId === sid) hideClarifyCard(force, reason);
+}
+
+function _renderPendingClarifyForActiveSession() {
+  const sid = _promptActiveSessionId();
+  if (!sid) return;
+  if (_clarifySessionId && _clarifySessionId !== sid) hideClarifyCard(true, 'session');
+  const entry = _clarifyPendingBySession.get(sid);
+  if (entry) showClarifyCard(entry.pending);
+}
+
+function showClarifyForSession(sid, pending) {
+  if (!pending) return;
+  pending._session_id = sid;
+  showClarifyCard(pending);
+}
+
+function _renderPendingPromptsForActiveSession() {
+  _renderPendingApprovalForActiveSession();
+  _renderPendingClarifyForActiveSession();
+}
 
 function _ensureClarifyCardDom() {
   let card = $("clarifyCard");
@@ -1698,6 +1800,8 @@ function _clarifySetControlsDisabled(disabled, loading=false) {
 }
 
 function showClarifyCard(pending) {
+  const sid = _rememberClarifyPending(pending);
+  if (!_clarifyPromptBelongsToActiveSession(sid)) return;
   const question = pending.question || pending.description || '';
   const choices = Array.isArray(pending.choices_offered)
     ? pending.choices_offered
@@ -1713,7 +1817,7 @@ function showClarifyCard(pending) {
   const choicesEl = $("clarifyChoices");
   const input = $("clarifyInput");
   const sameClarify = card.classList.contains("visible") && _clarifySignature === sig;
-  _clarifySessionId = pending._session_id || (S.session && S.session.session_id) || null;
+  _clarifySessionId = sid;
   _clarifySignature = sig;
   _startClarifyCountdown(pending);
   if (!sameClarify) {
@@ -1794,6 +1898,7 @@ async function respondClarify(response) {
     return;
   }
   _clarifySessionId = null;
+  _clearClarifyPendingForSession(sid);
   _clarifySetControlsDisabled(true, true);
   hideClarifyCard(true, 'sent');
   try {
@@ -1825,16 +1930,16 @@ function startClarifyPolling(sid) {
   _clarifyEventSource.addEventListener('initial', function(ev) {
     try {
       var d = JSON.parse(ev.data);
-      if (d.pending) { d.pending._session_id = sid; showClarifyCard(d.pending); }
-      else { hideClarifyCard(false, 'expired'); }
+      if (d.pending) { showClarifyForSession(sid, d.pending); }
+      else { _clearClarifyPendingForSession(sid); _hideClarifyCardIfOwner(sid, false, 'expired'); }
     } catch(e) {}
   });
 
   _clarifyEventSource.addEventListener('clarify', function(ev) {
     try {
       var d = JSON.parse(ev.data);
-      if (d.pending) { d.pending._session_id = sid; showClarifyCard(d.pending); }
-      else { hideClarifyCard(false, 'expired'); }
+      if (d.pending) { showClarifyForSession(sid, d.pending); }
+      else { _clearClarifyPendingForSession(sid); _hideClarifyCardIfOwner(sid, false, 'expired'); }
     } catch(e) {}
   });
 
@@ -1871,12 +1976,12 @@ function startClarifyPolling(sid) {
 function _startClarifyFallbackPoll(sid) {
   _clarifyFallbackTimer = setInterval(async () => {
     if (!S.session || S.session.session_id !== sid) {
-      stopClarifyPolling(); hideClarifyCard(true, 'session'); return;
+      stopClarifyPolling(); _hideClarifyCardIfOwner(sid, true, 'session'); return;
     }
     try {
       const data = await api("/api/clarify/pending?session_id=" + encodeURIComponent(sid));
-      if (data.pending) { data.pending._session_id=sid; showClarifyCard(data.pending); }
-      else { hideClarifyCard(false, 'expired'); }
+      if (data.pending) { showClarifyForSession(sid, data.pending); }
+      else { _clearClarifyPendingForSession(sid); _hideClarifyCardIfOwner(sid, false, 'expired'); }
     } catch(e) {
       const msg = String((e && e.message) || "");
       if (!_clarifyMissingEndpointWarned && /(^|\b)(404|not found)(\b|$)/i.test(msg)) {
