@@ -231,7 +231,7 @@
     background:linear-gradient(90deg,rgba(56,189,248,0.16),rgba(56,189,248,0.03));
   }
 
-  :root[data-skin="sebadebian"] .msg-body{line-height:1.45;letter-spacing:.01em;}
+  :root[data-skin="sebadebian"] .msg-body{line-height:1.5;letter-spacing:.01em;}
   :root[data-skin="sebadebian"] .session-item,
   :root[data-skin="sebadebian"] .session-meta,
   :root[data-skin="sebadebian"] .msg-body,
@@ -242,6 +242,8 @@
 
   :root[data-skin="sebadebian"] .msg-row[data-role="user"] .msg-body,
   :root[data-skin="sebadebian"] .msg-row[data-role="assistant"] .msg-body{
+    padding:12px 16px;
+
     border:1px solid var(--border2);
     background:linear-gradient(180deg,rgba(125,211,252,0.05),rgba(125,211,252,0.015));
   }
@@ -416,7 +418,7 @@
   .system-health-bar-fill{height:100%;width:0%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent-hover));transition:width .25s ease;}
   .system-health-foot{font-size:11px;color:var(--muted);line-height:1.45;opacity:.82;}
   .app-titlebar-icon{display:inline-flex;align-items:center;color:var(--accent);}
-  .app-titlebar-title{font-size:12px;font-weight:600;color:var(--text);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw;}
+  .app-titlebar-title{font-size:14px;font-weight:600;color:var(--text);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw;}
   .app-titlebar-sub{font-size:10px;color:var(--muted);background:var(--hover-bg);padding:2px 7px;border-radius:4px;font-family:'SF Mono',ui-monospace,monospace;white-space:nowrap;flex-shrink:0;}
   .app-titlebar-sub[hidden]{display:none;}
   .app-titlebar-hamburger,.app-titlebar-spacer{display:none;width:32px;height:32px;flex-shrink:0;}
@@ -1624,16 +1626,16 @@
     .rightpanel .resize-handle{display:none;}
     /* Topbar adjustments */
     .topbar{padding:8px 12px;gap:8px;}
-    .topbar-title{font-size:14px;}
+    .topbar-title{font-size:15px;}
     .topbar-meta{display:none;}
     .topbar-chips{flex-wrap:nowrap;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
-    .topbar-chips .chip,.topbar-chips .ws-chip,.topbar-chips button{font-size:11px!important;padding:4px 8px!important;white-space:nowrap;}
+    .topbar-chips .chip,.topbar-chips .ws-chip,.topbar-chips button{font-size:12px!important;padding:6px 10px!important;white-space:nowrap;}
     .settings-main{padding:18px 16px;}
     .hermes-action-grid{grid-template-columns:1fr;}
-    .messages-inner{padding:12px 10px 20px;}
+    .messages-inner{padding:16px 14px 20px;}
     .msg-body{padding-left:0;max-width:100%;}
-    .msg-role{font-size:12px;}
-    .composer-wrap{padding:8px 10px 12px!important;}
+    .msg-role{font-size:13px;}
+    .composer-wrap{padding:10px 14px 12px!important;}
     .composer-box{border-radius:12px;}
     .composer-box textarea{min-height:40px;}
     .composer-footer{padding:6px 8px 8px!important;gap:6px;flex-wrap:nowrap;align-items:center;}
@@ -3321,8 +3323,8 @@ main.main.showing-logs > #mainLogs{display:flex;}
 
 @media (max-width: 700px) {
   .msg-role { margin-bottom: 4px; }
-  .msg-row[data-role="user"] .msg-body { padding: 8px 12px; }
-  .msg-row[data-error="1"] .msg-body { padding: 8px 12px; }
+  .msg-row[data-role="user"] .msg-body { padding: 10px 14px; }
+  .msg-row[data-error="1"] .msg-body { padding: 10px 14px; }
 }
 
 /* ── Shared main-view tokens (used by #mainSkills, #mainTasks, #mainWorkspaces, #mainProfiles) ── */
