@@ -5658,3 +5658,115 @@ async function _restoreCheckpoint(workspace,checkpoint,message){
     showToast(t('checkpoint_restore')+': '+e.message,'error');
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEBADEBIAN V2 — Collapsible rail + Agent Activity console resize
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// ── Collapsible rail ────────────────────────────────────────────────────────
+(function initRailCollapse() {
+  const STORAGE_KEY = 'seb-rail-collapsed';
+
+  function applyCollapse(collapsed, animate) {
+    const btn = document.getElementById('railCollapseBtn');
+    document.body.classList.toggle('rail-collapsed', collapsed);
+    if (btn) {
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.setAttribute('data-tooltip', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    }
+    // Briefly disable transitions on first paint to avoid flash
+    if (!animate) {
+      document.body.style.setProperty('--seb-collapse-transition', 'none');
+      requestAnimationFrame(() => document.body.style.removeProperty('--seb-collapse-transition'));
+    }
+  }
+
+  window.toggleRailCollapse = function() {
+    const isCollapsed = document.body.classList.contains('rail-collapsed');
+    const next = !isCollapsed;
+    localStorage.setItem(STORAGE_KEY, next ? '1' : '0');
+    applyCollapse(next, true);
+  };
+
+  // Restore on load — no animation on boot
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved === '1') applyCollapse(true, false);
+})();
+
+// ── Agent Activity console: vertical drag-resize ────────────────────────────
+(function initAgentConsoleResize() {
+  const STORAGE_KEY = 'seb-agent-console-h';
+  const MIN_H = 36;
+  const MAX_H_RATIO = 0.75; // 75vh
+
+  function getConsole() { return document.getElementById('sidebarAgentConsole'); }
+
+  // Restore saved height
+  const savedH = localStorage.getItem(STORAGE_KEY);
+  if (savedH) {
+    const el = getConsole();
+    if (el && !el.classList.contains('console-collapsed')) {
+      el.style.height = Math.min(parseInt(savedH), Math.round(window.innerHeight * MAX_H_RATIO)) + 'px';
+    }
+  }
+
+  // Toggle collapse on header click (via collapse btn)
+  window.toggleAgentConsole = function() {
+    const el = getConsole();
+    if (!el) return;
+    const isCollapsed = el.classList.contains('console-collapsed');
+    el.classList.toggle('console-collapsed', !isCollapsed);
+    localStorage.setItem('seb-agent-console-collapsed', isCollapsed ? '0' : '1');
+  };
+
+  // Restore collapsed state
+  if (localStorage.getItem('seb-agent-console-collapsed') === '1') {
+    const el = getConsole();
+    if (el) el.classList.add('console-collapsed');
+  }
+
+  // Wire up drag-resize handle
+  document.addEventListener('DOMContentLoaded', function() {
+    const handle = document.getElementById('agentConsoleResizeHandle');
+    const consoleEl = getConsole();
+    if (!handle || !consoleEl) return;
+
+    let startY = 0, startH = 0;
+
+    handle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      startY = e.clientY;
+      startH = consoleEl.getBoundingClientRect().height;
+      handle.classList.add('dragging');
+      document.body.classList.add('resizing');
+
+      const maxH = Math.round(window.innerHeight * MAX_H_RATIO);
+
+      const onMove = function(ev) {
+        // Dragging upward (negative delta) = increase height
+        const delta = startY - ev.clientY;
+        const newH = Math.min(maxH, Math.max(MIN_H, startH + delta));
+        consoleEl.style.height = newH + 'px';
+        // Auto-uncollapse when dragging up
+        if (newH > MIN_H && consoleEl.classList.contains('console-collapsed')) {
+          consoleEl.classList.remove('console-collapsed');
+          localStorage.setItem('seb-agent-console-collapsed', '0');
+        }
+      };
+
+      const onUp = function() {
+        handle.classList.remove('dragging');
+        document.body.classList.remove('resizing');
+        const h = parseInt(consoleEl.style.height);
+        if (!isNaN(h)) localStorage.setItem(STORAGE_KEY, h);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+})();

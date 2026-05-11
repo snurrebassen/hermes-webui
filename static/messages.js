@@ -44,6 +44,11 @@ async function send(){
   if(!text&&!S.pendingFiles.length)return;
   // Don't send while an inline message edit is active
   if(document.querySelector('.msg-edit-area'))return;
+  
+  if(window.logAgentActivity) {
+    const fileInfo = S.pendingFiles.length ? ` (+${S.pendingFiles.length} file${S.pendingFiles.length > 1 ? 's' : ''})` : '';
+    window.logAgentActivity(`User prompt: "${text.slice(0, 30)}${text.length > 30 ? '...' : ''}"${fileInfo}`, 'action');
+  }
 
   // Dismiss handoff hint when user sends a message (resets seen_at).
   if(S.session&&S.session.session_id&&typeof _dismissHandoffHint==='function'){
@@ -744,6 +749,14 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
 
     source.addEventListener('tool',e=>{
       const d=JSON.parse(e.data);
+      let argStr = '';
+      try {
+        if (d.args) {
+          argStr = JSON.stringify(d.args).replace(/\n/g, ' ');
+          if (argStr.length > 55) argStr = argStr.substring(0, 52) + '...';
+        }
+      } catch(_) {}
+      if(window.logAgentActivity) window.logAgentActivity(`Running \u25b6 ${d.name}(${argStr})`, 'tool');
       if(d.name==='clarify') return;
       const tc={name:d.name, preview:d.preview||'', args:d.args||{}, snippet:'', done:false, tid:d.tid||`live-${Date.now()}-${Math.random().toString(36).slice(2,8)}`};
       const inflight = INFLIGHT[activeSid] || (INFLIGHT[activeSid] = {
@@ -778,6 +791,15 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
 
     source.addEventListener('tool_complete',e=>{
       const d=JSON.parse(e.data);
+      let resStr = '';
+      try {
+        if (d.result !== undefined && d.result !== null) {
+          resStr = (typeof d.result === 'string' ? d.result : JSON.stringify(d.result)).replace(/\n/g, ' ');
+          if (resStr.length > 40) resStr = resStr.substring(0, 37) + '...';
+          resStr = ` \u2192 ${resStr}`;
+        }
+      } catch(_) {}
+      if(window.logAgentActivity) window.logAgentActivity(`Finished \u25a0 ${d.name || 'tool'}${resStr}`, 'done');
       if(d.name==='clarify') return;
       const inflight=INFLIGHT[activeSid];
       if(!inflight) return;
@@ -808,6 +830,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
 
     source.addEventListener('approval',e=>{
       const d=JSON.parse(e.data);
+      if(window.logAgentActivity) window.logAgentActivity(`Approval required for: ${d.name}`, 'warning');
       showApprovalForSession(activeSid, d, 1);
       playNotificationSound();
       sendBrowserNotification('Approval required',d.description||'Tool approval needed');
@@ -815,6 +838,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
 
     source.addEventListener('clarify',e=>{
       const d=JSON.parse(e.data);
+      if(window.logAgentActivity) window.logAgentActivity(`Asked for clarification`, 'warning');
       showClarifyForSession(activeSid, d);
       playNotificationSound();
       sendBrowserNotification('Clarification needed',d.question||'Tool clarification needed');
@@ -980,6 +1004,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     });
 
     source.addEventListener('stream_end',e=>{
+      if(window.logAgentActivity) window.logAgentActivity('Agent finished', 'done');
       _terminalStateReached=true;
       try{
         const d=JSON.parse(e.data||'{}');
@@ -1012,6 +1037,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     });
 
     source.addEventListener('compressing',e=>{
+      if(window.logAgentActivity) window.logAgentActivity(`Compressing context...`, 'info');
       // Context auto-compression is starting. Surface the same calm running
       // compression card as manual /compress while the summarizer LLM call runs.
       if(!S.session||S.session.session_id!==activeSid) return;
@@ -1064,6 +1090,7 @@ function attachLiveStream(activeSid, streamId, uploaded=[], options={}){
     });
 
     source.addEventListener('apperror',e=>{
+      if(window.logAgentActivity) window.logAgentActivity(`Agent Error`, 'error');
       _terminalStateReached=true;
       if(_persistTimer){clearTimeout(_persistTimer);_persistTimer=null;}
       _streamFinalized=true;

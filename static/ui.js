@@ -6768,7 +6768,33 @@ async function uploadPendingFiles(){
   S.pendingFiles=[];renderTray();
   if(failures===total&&total>0)throw new Error(t('all_uploads_failed',total));
   // Show extraction summary
-  const extracted=names.filter(n=>n.extracted);
-  if(extracted.length)showToast(t('archive_extracted',extracted.reduce((s,n)=>s+n.extracted,0),extracted.length));
-  return names;
 }
+
+// ── Agent Activity Console Helper ──
+window.logAgentActivity = function(text, type = 'info') {
+  const container = document.getElementById('sidebarAgentConsoleBody');
+  if (!container) return;
+  const line = document.createElement('div');
+  line.className = `activity-line type-${type}`;
+  line.style.borderBottom = '1px solid var(--border-subtle)';
+  line.style.paddingBottom = '4px';
+  line.style.marginTop = '2px';
+  line.style.wordBreak = 'break-word';
+  
+  const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+  let color = 'var(--muted)';
+  if (type === 'error') color = 'var(--error)';
+  if (type === 'tool') color = 'var(--blue)';
+  if (type === 'done') color = 'var(--success)';
+  if (type === 'warning') color = 'var(--warning)';
+  if (type === 'action') color = 'var(--accent-text)';
+  
+  line.innerHTML = `<span style="opacity:0.5; margin-right:4px;">[${time}]</span> <span style="color:${color}">${text}</span>`;
+  container.appendChild(line);
+  container.scrollTop = container.scrollHeight;
+  
+  // Keep only last 100 lines
+  while (container.childNodes.length > 100) {
+    container.removeChild(container.firstChild);
+  }
+};

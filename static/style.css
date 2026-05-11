@@ -267,7 +267,12 @@
     box-shadow:inset 0 0 0 1px rgba(125,211,252,0.14),0 0 0 1px rgba(0,0,0,0.35),0 0 0 3px rgba(56,189,248,0.18);
   }
 
-  :root[data-skin="sebadebian"] .empty-logo img{filter:drop-shadow(0 0 10px rgba(56,189,248,0.35)) drop-shadow(0 0 26px rgba(56,189,248,0.16));}
+  :root[data-skin="sebadebian"] .empty-logo img{
+    filter:drop-shadow(0 0 12px rgba(56,189,248,0.30)) drop-shadow(0 0 32px rgba(56,189,248,0.12));
+    /* Wide/short logo: scale to comfortable width, cap on mobile */
+    width: min(520px, 80vw);
+    height: auto;
+  }
 
   /* #594: app-dialog light mode overrides — base styles use hardcoded dark gradients */
   :root:not(.dark) .app-dialog{
@@ -3870,3 +3875,431 @@ main.main.showing-logs > #mainLogs{display:flex;}
 .log-line-debug{color:var(--muted);opacity:.75;}
 .logs-empty,.logs-hint{margin:8px 14px;padding:12px;border:1px solid var(--border);border-radius:8px;color:var(--muted);background:var(--surface);white-space:normal;font-family:var(--font-ui,system-ui,sans-serif);font-size:12px;}
 .logs-hint.warn{color:#f59e0b;border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.08);}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEBADEBIAN SKIN V2 — Collapsible rail, Agent console, Home screen V2,
+   Composer chips strip, global polish. Appended; upstream base untouched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sebadebian V2: CSS custom-property overrides for easy per-skin tuning ── */
+:root[data-skin="sebadebian"] {
+  /* Layout knobs — tweak these without touching component rules */
+  --seb-logo-gap: clamp(24px, 6vh, 80px);   /* space below logo on home screen */
+  --seb-msg-max: 800px;                       /* max chat message width */
+  --seb-rail-width: 48px;                     /* icon-rail width */
+  --seb-sidebar-collapsed-width: 0px;         /* sidebar width when rail-collapsed */
+  --seb-home-starter-max: min(640px, 92vw);  /* home input strip max-width */
+  --seb-home-chip-strip-max: min(700px, 96vw); /* chip strip on home screen */
+
+  /* Typography knobs */
+  --seb-font-ui: "IBM Plex Mono","JetBrains Mono","Fira Code","SFMono-Regular",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  --seb-font-size-chat: 13px;
+  --seb-font-size-ui: 12px;
+  --seb-line-height-chat: 1.55;
+}
+
+/* ── Global FF scrollbar (supplement webkit rules) ── */
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ── Collapsible rail ─────────────────────────────────────────────────────── */
+.rail-collapse-btn {
+  order: -1; /* always first in rail */
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.rail-collapse-btn:hover { color: var(--text); }
+.rail-collapse-icon {
+  transition: transform .25s ease;
+}
+
+/* Collapsed state: rail shrinks, sidebar hidden, main expands */
+body.rail-collapsed .rail {
+  width: var(--seb-rail-width);
+}
+body.rail-collapsed .sidebar {
+  width: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden;
+  border-right: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: width .25s ease, opacity .2s ease;
+}
+/* Animate sidebar open */
+.sidebar {
+  transition: width .25s ease, opacity .2s ease;
+}
+body.rail-collapsed #railCollapseBtn {
+  color: var(--accent-text);
+  background: var(--accent-bg);
+  border-radius: 6px;
+}
+body.rail-collapsed .rail-collapse-icon {
+  transform: rotate(90deg);
+}
+/* Update tooltip on collapsed state */
+body.rail-collapsed #railCollapseBtn[data-tooltip]::after {
+  content: "Expand sidebar";
+}
+/* Hide resize handle when collapsed */
+body.rail-collapsed .sidebar .resize-handle {
+  display: none;
+}
+
+/* ── Agent Activity Console — proper CSS class (replaces inline styles) ───── */
+.sidebar-console {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  height: 180px;
+  min-height: 36px;
+  max-height: 75vh;
+  overflow: hidden;
+  position: relative;
+}
+.sidebar-console.console-collapsed {
+  height: 36px !important;
+  min-height: 36px;
+  max-height: 36px;
+}
+/* Drag-resize handle — sits at the top of the console, draggable upward */
+.sidebar-console-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  cursor: ns-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background .15s;
+}
+.sidebar-console-resize-handle:hover,
+.sidebar-console-resize-handle.dragging {
+  background: var(--accent-bg-strong);
+}
+.sidebar-console-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+  min-height: 36px;
+}
+.sidebar-console-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: .07em;
+  color: var(--muted);
+}
+.sidebar-console-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar-console-collapse-btn,
+.sidebar-console-clear-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .12s, background .12s;
+}
+.sidebar-console-collapse-btn:hover,
+.sidebar-console-clear-btn:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+.sidebar-console.console-collapsed .sidebar-console-collapse-btn svg {
+  transform: rotate(180deg);
+}
+.sidebar-console-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+/* Hide body when collapsed so header snaps cleanly */
+.sidebar-console.console-collapsed .sidebar-console-body,
+.sidebar-console.console-collapsed .sidebar-console-resize-handle {
+  display: none;
+}
+
+/* ── Home screen V2 ───────────────────────────────────────────────────────── */
+/* Fade-in on home empty state */
+.empty-state {
+  animation: seb-fadein .35s ease both;
+}
+@keyframes seb-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive logo gap — replaces hardcoded 102px */
+.empty-logo {
+  margin-bottom: var(--seb-logo-gap, clamp(24px, 6vh, 80px)) !important;
+}
+/* Mobile: cap logo so it doesn't eat the whole viewport */
+@media (max-width: 640px) {
+  .empty-logo img {
+    max-height: 28vh !important;
+    width: auto !important;
+  }
+}
+
+/* Wider, centered home starter strip */
+.home-starter {
+  max-width: var(--seb-home-starter-max, min(640px, 92vw)) !important;
+  width: 100%;
+  gap: 0 !important; /* handled by border-radius join */
+}
+
+/* Sebadebian skin: joined pill input+button  */
+:root[data-skin="sebadebian"] .home-starter {
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  overflow: hidden;
+  gap: 0 !important;
+  box-shadow: inset 0 0 0 1px rgba(125,211,252,0.08), 0 0 0 1px rgba(0,0,0,0.30);
+  align-items: stretch;
+}
+:root[data-skin="sebadebian"] .home-starter-input {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 13px 16px !important;
+  font-size: 14px !important;
+  height: auto;
+}
+:root[data-skin="sebadebian"] .home-starter-btn {
+  border: none !important;
+  border-left: 1px solid var(--border2) !important;
+  border-radius: 0 !important;
+  background: var(--accent-bg) !important;
+  color: var(--accent-text) !important;
+  padding: 13px 20px !important;
+  font-size: 12px !important;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  flex-shrink: 0;
+  align-self: stretch;
+  box-shadow: none !important;
+  transition: background .15s;
+}
+:root[data-skin="sebadebian"] .home-starter-btn:hover {
+  background: var(--accent-bg-strong) !important;
+  filter: none;
+}
+:root[data-skin="sebadebian"] .home-starter:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* ── Home screen chip strip (composer controls shown on empty state) ────────
+   On sebadebian home, show a compact contextual bar below the starter input
+   with model, workspace, and reasoning chips — styled as a secondary row.   */
+:root[data-skin="sebadebian"] body.home-empty-active .composer-wrap {
+  background: transparent !important;
+  border-top: none !important;
+  padding: 0 !important;
+}
+:root[data-skin="sebadebian"] body.home-empty-active .composer-wrap::before {
+  display: none !important;
+}
+/* Show composer-box but hide everything except footer (chip strip lives inside it) */
+:root[data-skin="sebadebian"] body.home-empty-active .composer-box {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  max-width: var(--seb-home-chip-strip-max, min(700px, 96vw)) !important;
+  border-radius: 0 !important;
+  margin: 0 auto !important;
+}
+/* Hide all composer-box children except the footer */
+:root[data-skin="sebadebian"] body.home-empty-active .composer-box > *:not(.composer-footer) {
+  display: none !important;
+}
+/* Chip strip: the composer-footer becomes a flex row of chips */
+:root[data-skin="sebadebian"] body.home-empty-active .composer-footer {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 10px 0 0 !important;
+  width: 100% !important;
+  container-type: normal !important;
+}
+:root[data-skin="sebadebian"] body.home-empty-active .composer-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex: none !important;
+  overflow: visible !important;
+  min-width: 0 !important;
+}
+:root[data-skin="sebadebian"] body.home-empty-active .composer-right {
+  display: none !important;
+}
+
+/* Show only workspace, model, reasoning — hide everything else */
+:root[data-skin="sebadebian"] body.home-empty-active .composer-divider,
+:root[data-skin="sebadebian"] body.home-empty-active #btnAttach,
+:root[data-skin="sebadebian"] body.home-empty-active #btnMic,
+:root[data-skin="sebadebian"] body.home-empty-active #btnVision,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-profile-wrap,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-toolsets-wrap,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-btn,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-mobile-config-panel,
+:root[data-skin="sebadebian"] body.home-empty-active .bg-badge,
+:root[data-skin="sebadebian"] body.home-empty-active .yolo-pill {
+  display: none !important;
+}
+:root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-group,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-model-wrap,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-reasoning-wrap {
+  display: inline-flex !important;
+}
+
+/* Home chips: retro outlined style */
+:root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-group,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-model-chip,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-reasoning-chip {
+  font-size: 11px !important;
+  letter-spacing: .04em;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 2px !important;
+  background: var(--surface-subtle) !important;
+  color: var(--muted) !important;
+  padding: 5px 10px !important;
+  height: auto !important;
+}
+:root[data-skin="sebadebian"] body.home-empty-active .composer-model-chip:hover,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chip:hover,
+:root[data-skin="sebadebian"] body.home-empty-active .composer-reasoning-chip:hover {
+  border-color: var(--accent) !important;
+  color: var(--text) !important;
+  background: var(--accent-bg) !important;
+}
+/* Keep workspace group consistent */
+:root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-files-btn {
+  display: none !important;
+}
+:root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-chip {
+  border-left: none !important;
+  border-radius: 2px !important;
+  padding: 5px 10px !important;
+}
+
+/* Mobile: chips wrap sensibly */
+@media (max-width: 640px) {
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-footer {
+    padding: 8px 16px 0 !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-workspace-group,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-model-wrap,
+  :root[data-skin="sebadebian"] body.home-empty-active .composer-reasoning-wrap {
+    display: inline-flex !important;
+  }
+}
+
+/* ── Sebadebian V2 skin polish ────────────────────────────────────────────── */
+
+/* Use the V2 CSS vars for msg-max */
+:root[data-skin="sebadebian"] .messages-inner {
+  max-width: var(--seb-msg-max) !important;
+}
+@media (min-width: 1400px) {
+  :root[data-skin="sebadebian"] .messages-inner {
+    max-width: calc(var(--seb-msg-max) + 40px) !important;
+  }
+}
+@media (min-width: 1800px) {
+  :root[data-skin="sebadebian"] .messages-inner {
+    max-width: calc(var(--seb-msg-max) + 80px) !important;
+  }
+}
+
+/* Keyboard focus ring on interactive chips */
+:root[data-skin="sebadebian"] .chip:focus-visible,
+:root[data-skin="sebadebian"] .composer-model-chip:focus-visible,
+:root[data-skin="sebadebian"] .composer-workspace-chip:focus-visible,
+:root[data-skin="sebadebian"] .composer-reasoning-chip:focus-visible,
+:root[data-skin="sebadebian"] .new-chat-btn:focus-visible,
+:root[data-skin="sebadebian"] .session-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Active accent indicator on rail: make it a left-edge line (already exists, make brighter) */
+:root[data-skin="sebadebian"] .rail-btn.active::before {
+  background: var(--accent);
+  width: 3px;
+}
+
+/* Sidebar: subtle scanline feel for sebadebian skin */
+:root.dark[data-skin="sebadebian"] .sidebar {
+  background: repeating-linear-gradient(
+    0deg,
+    var(--sidebar),
+    var(--sidebar) 1px,
+    rgba(125,211,252,0.012) 1px,
+    rgba(125,211,252,0.012) 2px
+  );
+  background-size: auto 2px;
+}
+
+/* Topbar: clean monospace breadcrumb */
+:root[data-skin="sebadebian"] .app-titlebar-title {
+  font-family: var(--seb-font-ui);
+  font-size: 13px;
+  letter-spacing: .02em;
+}
+:root[data-skin="sebadebian"] .app-titlebar-sub {
+  font-family: var(--seb-font-ui);
+  font-size: 11px;
+}
+
+/* Message body typography */
+:root[data-skin="sebadebian"] .msg-body {
+  font-size: var(--seb-font-size-chat);
+  line-height: var(--seb-line-height-chat);
+}
+
+/* Smooth sidebar collapse transition on desktop only */
+@media (min-width: 641px) {
+  .sidebar {
+    transition: width .22s cubic-bezier(.4,0,.2,1), opacity .18s ease;
+  }
+  body.rail-collapsed .rail .nav-tab .has-tooltip {
+    /* Show tooltip even when sidebar is collapsed so nav is still discoverable */
+    pointer-events: auto;
+  }
+}
